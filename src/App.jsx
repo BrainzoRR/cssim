@@ -546,6 +546,11 @@ function App() {
     }, 3200);
   };
 
+  const handleSiteModeChange = (mode) => {
+    setSiteMode(mode);
+    setLiveLayoutMode(mode === "mobile" ? "phone" : "broadcast");
+  };
+
   useEffect(() => {
     liveMatchRef.current = state.currentMatch;
   }, [state.currentMatch]);
@@ -658,14 +663,15 @@ function App() {
     }
 
     const speed = SPEED_OPTIONS.find((option) => option.id === state.currentMatch.speed)?.intervalMs ?? 5000;
-    roundStartedAtRef.current = Date.now();
+    const startProgressTimer = (durationMs) => {
+      roundStartedAtRef.current = Date.now();
+      progressIntervalRef.current = window.setInterval(() => {
+        setRoundProgress(
+          clamp((Date.now() - roundStartedAtRef.current) / Math.max(1, durationMs), 0, 1)
+        );
+      }, 100);
+    };
     setRoundPlayback(null);
-
-    progressIntervalRef.current = window.setInterval(() => {
-      setRoundProgress(
-        clamp((Date.now() - roundStartedAtRef.current) / speed, 0, 1)
-      );
-    }, 100);
 
     if (livePresentationMode === "live") {
       const currentMatch = liveMatchRef.current;
@@ -676,16 +682,25 @@ function App() {
       const nextMatch = stepMatch(currentMatch);
       const playbackSummary = nextMatch.latestRound;
       const playbackFrames = playbackSummary?.timeline ?? [];
+      const playbackPreset =
+        currentMatch.speed === "slow"
+          ? { preRollMs: 520, postRollMs: 760, minFrameMs: 300, maxFrameMs: 520, extraBudgetMs: 1200 }
+          : { preRollMs: 900, postRollMs: 1100, minFrameMs: 520, maxFrameMs: 900, extraBudgetMs: 2200 };
       const frameDelay = clamp(
-        Math.floor((speed - 320) / Math.max(1, playbackFrames.length || 1)),
-        currentMatch.speed === "slow" ? 120 : 180,
-        currentMatch.speed === "slow" ? 280 : 520
+        Math.floor((speed + playbackPreset.extraBudgetMs) / Math.max(1, playbackFrames.length || 1)),
+        playbackPreset.minFrameMs,
+        playbackPreset.maxFrameMs
       );
-      const commitDelay = Math.max(speed, playbackFrames.length * frameDelay + 260);
+      const liveRoundDuration =
+        playbackPreset.preRollMs + playbackFrames.length * frameDelay + playbackPreset.postRollMs;
+      const commitDelay = Math.max(speed, liveRoundDuration);
+
+      startProgressTimer(commitDelay);
 
       setRoundPlayback({
         summary: playbackSummary,
         frameIndex: -1,
+        totalFrames: playbackFrames.length,
       });
 
       playbackFrames.forEach((frame, index) => {
@@ -695,7 +710,7 @@ function App() {
               ? { ...current, frameIndex: index }
               : current
           );
-        }, frameDelay * (index + 1));
+        }, playbackPreset.preRollMs + frameDelay * index);
         playbackTimersRef.current.push(timerId);
       });
 
@@ -716,6 +731,8 @@ function App() {
         playbackTimersRef.current = [];
       };
     }
+
+    startProgressTimer(speed);
 
     roundIntervalRef.current = window.setInterval(() => {
       const currentMatch = liveMatchRef.current;
@@ -847,10 +864,7 @@ function App() {
               <MobileHeader
               activeView={resolvedActiveView}
               siteMode={siteMode}
-              onSiteModeChange={(mode) => {
-                setSiteMode(mode);
-                setLiveLayoutMode(mode === "mobile" ? "phone" : "broadcast");
-              }}
+              onSiteModeChange={handleSiteModeChange}
               language={language}
               onLanguageChange={setLanguage}
             />
@@ -858,6 +872,8 @@ function App() {
             <TopNav
               activeView={resolvedActiveView}
               onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
+              siteMode={siteMode}
+              onSiteModeChange={handleSiteModeChange}
             />
           ))}
         <div
@@ -936,6 +952,8 @@ function App() {
                 onPresentationModeChange={setLivePresentationMode}
                 roundPlayback={roundPlayback}
                 fullscreen={phoneLiveMode}
+                siteMode={siteMode}
+                onSiteModeChange={handleSiteModeChange}
               />
             )}
             {resolvedActiveView === "results" && resolvedResultsData && (
@@ -1026,8 +1044,7 @@ function App() {
         {!siteMode && (
           <SiteModeModal
             onChoose={(mode) => {
-              setSiteMode(mode);
-              setLiveLayoutMode(mode === "mobile" ? "phone" : "broadcast");
+              handleSiteModeChange(mode);
             }}
           />
         )}
@@ -1052,6 +1069,24 @@ function renderLogo(logo, fallback = "T") {
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
+}
+
+function formatRoundClock(totalSeconds) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, "0")}`;
+}
+
+function clockLabelToSeconds(label) {
+  if (!label || typeof label !== "string") {
+    return 115;
+  }
+
+  const [minutes, seconds] = label.split(":").map((value) => Number.parseInt(value, 10));
+  if (Number.isNaN(minutes) || Number.isNaN(seconds)) {
+    return 115;
+  }
+
+  return minutes * 60 + seconds;
 }
 
 function useIsLandscape(enabled = true) {
@@ -1097,7 +1132,7 @@ function Panel({ title, subtitle, action, children, className = "" }) {
   );
 }
 
-function TopNav({ activeView, onNavigate }) {
+function TopNav({ activeView, onNavigate, siteMode, onSiteModeChange }) {
   const { language, setLanguage, t } = useI18n();
   const navLabels = {
     home: t("nav_home"),
@@ -1115,6 +1150,7 @@ function TopNav({ activeView, onNavigate }) {
           <div className="font-display text-lg font-semibold text-text sm:text-2xl">{t("app_tagline")}</div>
         </div>
         <div className="flex min-w-0 items-center gap-3">
+          <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
           <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
             <span className="hidden px-2 text-xs uppercase tracking-[0.2em] text-muted sm:inline">{t("language")}</span>
             {["en", "ru"].map((lang) => (
@@ -1171,21 +1207,7 @@ function MobileHeader({ activeView, siteMode, onSiteModeChange, language, onLang
           <div className="truncate font-display text-xl text-text">{currentNav?.label ?? t("nav_home")}</div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
-            {["desktop", "mobile"].map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => onSiteModeChange(mode)}
-                className={classNames(
-                  "rounded-lg px-2.5 py-1 text-[11px] uppercase tracking-[0.14em]",
-                  siteMode === mode ? "bg-accent/10 text-accent" : "text-muted"
-                )}
-              >
-                {mode === "desktop" ? "PC" : "Mobile"}
-              </button>
-            ))}
-          </div>
+          <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
           <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
             {["en", "ru"].map((lang) => (
               <button
@@ -2413,10 +2435,13 @@ function LiveMatchView({
   onPresentationModeChange,
   roundPlayback = null,
   fullscreen = false,
+  siteMode = "desktop",
+  onSiteModeChange,
 }) {
   const { t } = useI18n();
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
   const playbackSummary = roundPlayback?.summary ?? null;
+  const playbackTotalFrames = roundPlayback?.totalFrames ?? playbackSummary?.timeline?.length ?? 0;
   const playbackFrame =
     playbackSummary && roundPlayback.frameIndex >= 0
       ? playbackSummary.timeline?.[Math.min(roundPlayback.frameIndex, (playbackSummary.timeline?.length ?? 1) - 1)] ?? null
@@ -2427,7 +2452,11 @@ function LiveMatchView({
   const teamBPlayers = playbackSnapshot?.teamB ?? latestRound?.loadouts.teamB ?? liveRowsFromTeam(activeMap.teamBState);
   const teamAState = activeMap.teamAState;
   const teamBState = activeMap.teamBState;
-  const roundClock = Math.max(0, Math.round(115 * (1 - roundProgress)));
+  const roundClock =
+    playbackSummary
+      ? clockLabelToSeconds(playbackFrame?.clock ?? "1:55")
+      : Math.max(0, Math.round(115 * (1 - roundProgress)));
+  const roundClockLabel = playbackSummary ? playbackFrame?.clock ?? "1:55" : formatRoundClock(roundClock);
   const economyData = activeMap.economyHistory.map((entry) => ({
     ...entry,
     label: entry.label,
@@ -2443,6 +2472,10 @@ function LiveMatchView({
         .reverse()
     : activeMap.allLogs.slice(0, 20);
   const currentPlaybackEvent = playbackFrame ?? null;
+  const playbackStepLabel =
+    playbackSummary && playbackTotalFrames
+      ? `${Math.max(0, Math.min(playbackTotalFrames, roundPlayback.frameIndex + 1))}/${playbackTotalFrames}`
+      : null;
   const liveStatusLabel = playbackSummary
     ? currentPlaybackEvent?.openingKill
       ? "Opening frag"
@@ -2473,8 +2506,12 @@ function LiveMatchView({
         onPresentationModeChange={onPresentationModeChange}
         currentPlaybackEvent={currentPlaybackEvent}
         feedEntries={feedEntries}
+        liveStatusLabel={liveStatusLabel}
+        playbackStepLabel={playbackStepLabel}
         fullscreen={fullscreen}
         mobileSite={mobileSite}
+        siteMode={siteMode}
+        onSiteModeChange={onSiteModeChange}
       />
     );
   }
@@ -2495,6 +2532,7 @@ function LiveMatchView({
           subtitle="Compact fullscreen HUD with scores, sides, economy, and players."
           action={
             <div className="flex items-center gap-2">
+              <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
               <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
               <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} />
             </div>
@@ -2510,7 +2548,7 @@ function LiveMatchView({
                   {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {activeMap.overtimeNumber ? `OT ${activeMap.overtimeNumber}` : "Regulation"}
                 </div>
                 <div className={classNames("mt-2 numbers text-xl", roundClock <= 10 ? "text-red-400" : "text-text")}>
-                  {Math.floor(roundClock / 60)}:{String(roundClock % 60).padStart(2, "0")}
+                  {roundClockLabel}
                 </div>
               </div>
               <TeamHeader team={match.teamB} score={activeMap.score.teamB} side={activeMap.teamBState.side} reverse />
@@ -2570,7 +2608,9 @@ function LiveMatchView({
                         </div>
                       </div>
                       <div className="rounded-full border border-border px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted">
-                        {playbackSummary ? liveStatusLabel ?? latestRound.displayRound : latestRound.displayRound}
+                        {playbackSummary
+                          ? `${liveStatusLabel ?? "Live"}${playbackStepLabel ? ` · ${playbackStepLabel}` : ""}`
+                          : latestRound.displayRound}
                       </div>
                     </div>
                     <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted">
@@ -2747,6 +2787,32 @@ function LayoutModeSwitch({ layoutMode, onChange, compact = false }) {
   );
 }
 
+function SiteModeSwitch({ siteMode, onChange, compact = false }) {
+  return (
+    <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
+      {[
+        { id: "desktop", label: compact ? "PC" : "Desktop" },
+        { id: "mobile", label: "Mobile" },
+      ].map((mode) => (
+        <button
+          key={mode.id}
+          type="button"
+          onClick={() => onChange?.(mode.id)}
+          className={classNames(
+            "rounded-lg border px-3 py-1.5 transition",
+            compact ? "text-[11px]" : "text-xs uppercase tracking-[0.16em]",
+            siteMode === mode.id
+              ? "border-accent bg-accent/10 text-accent"
+              : "border-transparent text-muted hover:text-text"
+          )}
+        >
+          {mode.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PresentationModeSwitch({ mode, onChange }) {
   return (
     <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
@@ -2784,8 +2850,16 @@ function PhoneLandscapeLiveMatchView({
   roundProgress,
   layoutMode,
   onLayoutModeChange,
+  presentationMode = "semi",
+  onPresentationModeChange,
+  currentPlaybackEvent = null,
+  feedEntries = [],
+  liveStatusLabel = null,
+  playbackStepLabel = null,
   fullscreen,
   mobileSite = false,
+  siteMode = "desktop",
+  onSiteModeChange,
 }) {
   const { t } = useI18n();
   const isLandscape = useIsLandscape(mobileSite);
@@ -2796,7 +2870,7 @@ function PhoneLandscapeLiveMatchView({
   }));
 
   if (mobileSite && !isLandscape) {
-    return <RotatePhonePrompt match={match} activeMap={activeMap} />;
+    return <RotatePhonePrompt match={match} activeMap={activeMap} siteMode={siteMode} onSiteModeChange={onSiteModeChange} />;
   }
 
   if (mobileSite) {
@@ -2814,6 +2888,14 @@ function PhoneLandscapeLiveMatchView({
         economyData={economyData}
         mobilePane={mobilePane}
         onPaneChange={setMobilePane}
+        presentationMode={presentationMode}
+        onPresentationModeChange={onPresentationModeChange}
+        currentPlaybackEvent={currentPlaybackEvent}
+        feedEntries={feedEntries}
+        liveStatusLabel={liveStatusLabel}
+        playbackStepLabel={playbackStepLabel}
+        siteMode={siteMode}
+        onSiteModeChange={onSiteModeChange}
       />
     );
   }
@@ -2845,7 +2927,7 @@ function PhoneLandscapeLiveMatchView({
                   {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {activeMap.overtimeNumber ? `OT ${activeMap.overtimeNumber}` : "Reg"}
                 </div>
                 <div className={classNames("numbers text-base", roundClock <= 10 ? "text-red-400" : "text-text")}>
-                  {Math.floor(roundClock / 60)}:{String(roundClock % 60).padStart(2, "0")}
+                  {formatRoundClock(roundClock)}
                 </div>
               </div>
               <div className="text-right">
@@ -2860,7 +2942,8 @@ function PhoneLandscapeLiveMatchView({
               />
             </div>
             {!mobileSite && (
-              <div className="mt-2 flex justify-end">
+              <div className="mt-2 flex items-center justify-end gap-2">
+                <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
                 <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact />
               </div>
             )}
@@ -2875,11 +2958,12 @@ function PhoneLandscapeLiveMatchView({
                     <div>
                       <div className="font-display text-2xl text-text">{latestRound.strategy}</div>
                       <div className="text-xs text-muted">
-                        {latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by {reasonLabel(latestRound.reason)}
+                        {currentPlaybackEvent?.label ??
+                          `${latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by ${reasonLabel(latestRound.reason)}`}
                       </div>
                     </div>
                     <div className="rounded-full border border-border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-muted">
-                      {latestRound.displayRound}
+                      {liveStatusLabel ? `${liveStatusLabel}${playbackStepLabel ? ` · ${playbackStepLabel}` : ""}` : latestRound.displayRound}
                     </div>
                   </div>
                 </div>
@@ -2920,7 +3004,7 @@ function PhoneLandscapeLiveMatchView({
           </Panel>
           <Panel title={mobileSite ? "" : t("live_feed")} subtitle={mobileSite ? "" : "Recent calls."} className="flex min-h-0 flex-col overflow-hidden rounded-none border-x-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
             <div className="scrollbar-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-              {activeMap.allLogs.slice(0, 8).map((log) => (
+              {(feedEntries.length ? feedEntries : activeMap.allLogs.slice(0, 8)).map((log, index) => (
                 <div key={log.id} className="rounded-xl border border-border bg-card/60 px-2.5 py-2">
                   <div className="numbers text-[10px] text-accent">[{log.clock}] {`R${log.roundNumber}`}</div>
                   <div className="mt-1 text-[11px] leading-4 text-text">{log.label}</div>
@@ -2993,7 +3077,7 @@ function CompactTeamPlayerCard({ player, side, reverse = false }) {
   );
 }
 
-function RotatePhonePrompt({ match, activeMap }) {
+function RotatePhonePrompt({ match, activeMap, siteMode, onSiteModeChange }) {
   return (
     <div className="flex h-[100dvh] w-screen items-center justify-center overflow-hidden px-4 py-5">
       <div className="panel w-full max-w-sm rounded-3xl p-6 text-center">
@@ -3018,6 +3102,9 @@ function RotatePhonePrompt({ match, activeMap }) {
             </div>
           </div>
         </div>
+        <div className="mt-5 flex justify-center">
+          <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} />
+        </div>
       </div>
     </div>
   );
@@ -3036,6 +3123,14 @@ function MobileLiveMatchView({
   economyData,
   mobilePane,
   onPaneChange,
+  presentationMode = "semi",
+  onPresentationModeChange,
+  currentPlaybackEvent = null,
+  feedEntries = [],
+  liveStatusLabel = null,
+  playbackStepLabel = null,
+  siteMode = "mobile",
+  onSiteModeChange,
 }) {
   const tabs = [
     { id: "round", label: "Round" },
@@ -3046,7 +3141,13 @@ function MobileLiveMatchView({
   return (
     <div className="grid h-[100dvh] w-screen grid-cols-[112px_minmax(0,1fr)_112px] gap-1 overflow-hidden bg-hero-grid px-1 py-1 sm:grid-cols-[124px_minmax(0,1fr)_124px]">
       <MobileCompactTeamColumn team={match.teamA} score={activeMap.score.teamA} side={teamAState.side} players={teamAPlayers} />
-      <div className="grid min-h-0 grid-rows-[58px_32px_minmax(0,1fr)] gap-1 overflow-hidden">
+      <div className="grid min-h-0 grid-rows-[38px_58px_32px_minmax(0,1fr)] gap-1 overflow-hidden">
+        <div className="panel rounded-2xl p-1.5">
+          <div className="flex items-center justify-between gap-1">
+            <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
+            <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+          </div>
+        </div>
         <div className="panel rounded-2xl p-2">
           <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card/80 px-3 py-2">
             <div className="min-w-0">
@@ -3057,7 +3158,7 @@ function MobileLiveMatchView({
             <div className="min-w-0 text-center">
               <div className="font-display text-lg text-accent">{activeMap.mapName}</div>
               <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{latestRound?.displayRound ?? `R${activeMap.roundNumber}`}</div>
-              <div className="numbers text-sm text-text">{Math.floor(roundClock / 60)}:{String(roundClock % 60).padStart(2, "0")}</div>
+              <div className="numbers text-sm text-text">{formatRoundClock(roundClock)}</div>
             </div>
             <div className="numbers text-3xl text-sky-300">{activeMap.score.teamB}</div>
             <div className="min-w-0 text-right">
@@ -3088,11 +3189,18 @@ function MobileLiveMatchView({
         </div>
         <div className="panel min-h-0 overflow-hidden rounded-2xl p-2">
           {mobilePane === "feed" ? (
-            <MobileFeedPanel logs={activeMap.allLogs} limit={7} />
+            <MobileFeedPanel logs={feedEntries.length ? feedEntries : activeMap.allLogs} limit={7} />
           ) : mobilePane === "econ" ? (
             <MobileEconomyPanel economyData={economyData} latestRound={latestRound} teamA={match.teamA} teamB={match.teamB} timeoutsRemaining={match.timeoutsRemaining} />
           ) : (
-            <MobileRoundContext match={match} latestRound={latestRound} fallbackRound={activeMap.roundNumber} />
+            <MobileRoundContext
+              match={match}
+              latestRound={latestRound}
+              fallbackRound={activeMap.roundNumber}
+              currentPlaybackEvent={currentPlaybackEvent}
+              liveStatusLabel={liveStatusLabel}
+              playbackStepLabel={playbackStepLabel}
+            />
           )}
         </div>
       </div>
@@ -3101,7 +3209,14 @@ function MobileLiveMatchView({
   );
 }
 
-function MobileRoundContext({ match, latestRound, fallbackRound }) {
+function MobileRoundContext({
+  match,
+  latestRound,
+  fallbackRound,
+  currentPlaybackEvent = null,
+  liveStatusLabel = null,
+  playbackStepLabel = null,
+}) {
   if (!latestRound) {
     return (
       <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-border px-4 text-center text-xs text-muted">
@@ -3117,11 +3232,12 @@ function MobileRoundContext({ match, latestRound, fallbackRound }) {
           <div className="min-w-0">
             <div className="font-display text-xl text-text">{latestRound.strategy}</div>
             <div className="truncate text-[11px] text-muted">
-              {latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by {reasonLabel(latestRound.reason)}
+              {currentPlaybackEvent?.label ??
+                `${latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by ${reasonLabel(latestRound.reason)}`}
             </div>
           </div>
           <div className="rounded-full border border-border px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-muted">
-            {latestRound.displayRound}
+            {liveStatusLabel ? `${liveStatusLabel}${playbackStepLabel ? ` · ${playbackStepLabel}` : ""}` : latestRound.displayRound}
           </div>
         </div>
       </div>
