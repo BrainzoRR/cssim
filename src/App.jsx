@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -238,6 +238,31 @@ const RADAR_ASSETS = {
   Anubis: { upper: "/radars/anubis.webp" },
 };
 
+const RADAR_VIEWBOXES = {
+  Mirage: {
+    upper: { left: 0.1, top: 0.08, width: 0.82, height: 0.84 },
+  },
+  Inferno: {
+    upper: { left: 0.06, top: 0.05, width: 0.87, height: 0.88 },
+  },
+  Nuke: {
+    upper: { left: 0.2, top: 0.22, width: 0.76, height: 0.54 },
+    lower: { left: 0.2, top: 0.22, width: 0.76, height: 0.54 },
+  },
+  Overpass: {
+    upper: { left: 0.2, top: 0.03, width: 0.65, height: 0.92 },
+  },
+  Dust: {
+    upper: { left: 0.03, top: 0.02, width: 0.94, height: 0.95 },
+  },
+  Ancient: {
+    upper: { left: 0.08, top: 0.08, width: 0.85, height: 0.84 },
+  },
+  Anubis: {
+    upper: { left: 0.16, top: 0.06, width: 0.73, height: 0.92 },
+  },
+};
+
 const RADAR_SITE_FALLBACKS = {
   Mirage: {
     A: { x: 0.77, y: 0.42, level: "upper" },
@@ -245,9 +270,9 @@ const RADAR_SITE_FALLBACKS = {
     Mid: { x: 0.52, y: 0.6, level: "upper" },
   },
   Inferno: {
-    A: { x: 0.69, y: 0.36, level: "upper" },
-    B: { x: 0.27, y: 0.18, level: "upper" },
-    Mid: { x: 0.5, y: 0.57, level: "upper" },
+    A: { x: 0.73, y: 0.73, level: "upper" },
+    B: { x: 0.22, y: 0.14, level: "upper" },
+    Mid: { x: 0.49, y: 0.6, level: "upper" },
   },
   Nuke: {
     A: { x: 0.57, y: 0.44, level: "upper" },
@@ -260,9 +285,9 @@ const RADAR_SITE_FALLBACKS = {
     Mid: { x: 0.52, y: 0.35, level: "upper" },
   },
   Dust: {
-    A: { x: 0.73, y: 0.2, level: "upper" },
-    B: { x: 0.18, y: 0.28, level: "upper" },
-    Mid: { x: 0.49, y: 0.4, level: "upper" },
+    A: { x: 0.79, y: 0.19, level: "upper" },
+    B: { x: 0.16, y: 0.17, level: "upper" },
+    Mid: { x: 0.5, y: 0.39, level: "upper" },
   },
   Ancient: {
     A: { x: 0.72, y: 0.18, level: "upper" },
@@ -270,9 +295,9 @@ const RADAR_SITE_FALLBACKS = {
     Mid: { x: 0.5, y: 0.54, level: "upper" },
   },
   Anubis: {
-    A: { x: 0.17, y: 0.61, level: "upper" },
-    B: { x: 0.71, y: 0.18, level: "upper" },
-    Mid: { x: 0.49, y: 0.5, level: "upper" },
+    A: { x: 0.27, y: 0.57, level: "upper" },
+    B: { x: 0.81, y: 0.18, level: "upper" },
+    Mid: { x: 0.51, y: 0.53, level: "upper" },
   },
 };
 
@@ -292,18 +317,18 @@ const RADAR_ZONE_POSITIONS = {
     catwalk: { x: 0.39, y: 0.52, level: "upper" },
   },
   Inferno: {
-    short: { x: 0.63, y: 0.35, level: "upper" },
-    library: { x: 0.74, y: 0.29, level: "upper" },
-    pit: { x: 0.77, y: 0.4, level: "upper" },
-    "site::A": { x: 0.69, y: 0.36, level: "upper" },
-    banana: { x: 0.42, y: 0.14, level: "upper" },
-    coffins: { x: 0.29, y: 0.12, level: "upper" },
-    "new box": { x: 0.24, y: 0.17, level: "upper" },
+    short: { x: 0.61, y: 0.7, level: "upper" },
+    library: { x: 0.76, y: 0.63, level: "upper" },
+    pit: { x: 0.83, y: 0.76, level: "upper" },
+    "site::A": { x: 0.74, y: 0.74, level: "upper" },
+    banana: { x: 0.29, y: 0.44, level: "upper" },
+    coffins: { x: 0.2, y: 0.16, level: "upper" },
+    "new box": { x: 0.25, y: 0.17, level: "upper" },
     dark: { x: 0.19, y: 0.23, level: "upper" },
-    mid: { x: 0.49, y: 0.57, level: "upper" },
-    arch: { x: 0.62, y: 0.52, level: "upper" },
-    boiler: { x: 0.53, y: 0.65, level: "upper" },
-    lane: { x: 0.42, y: 0.64, level: "upper" },
+    mid: { x: 0.47, y: 0.58, level: "upper" },
+    arch: { x: 0.62, y: 0.56, level: "upper" },
+    boiler: { x: 0.52, y: 0.72, level: "upper" },
+    lane: { x: 0.42, y: 0.71, level: "upper" },
   },
   Nuke: {
     outside: { x: 0.24, y: 0.47, level: "upper" },
@@ -333,18 +358,18 @@ const RADAR_ZONE_POSITIONS = {
     "short::Mid": { x: 0.4, y: 0.54, level: "upper" },
   },
   Dust: {
-    long: { x: 0.18, y: 0.56, level: "upper" },
-    catwalk: { x: 0.58, y: 0.24, level: "upper" },
-    "A site": { x: 0.74, y: 0.2, level: "upper" },
-    "short::A": { x: 0.66, y: 0.28, level: "upper" },
-    tunnels: { x: 0.22, y: 0.19, level: "upper" },
-    window: { x: 0.3, y: 0.3, level: "upper" },
-    "B site": { x: 0.17, y: 0.28, level: "upper" },
-    door: { x: 0.24, y: 0.37, level: "upper" },
-    mid: { x: 0.48, y: 0.42, level: "upper" },
-    xbox: { x: 0.56, y: 0.38, level: "upper" },
-    "lower tunnels": { x: 0.34, y: 0.5, level: "upper" },
-    "top mid": { x: 0.47, y: 0.31, level: "upper" },
+    long: { x: 0.18, y: 0.65, level: "upper" },
+    catwalk: { x: 0.62, y: 0.25, level: "upper" },
+    "A site": { x: 0.79, y: 0.19, level: "upper" },
+    "short::A": { x: 0.69, y: 0.28, level: "upper" },
+    tunnels: { x: 0.16, y: 0.1, level: "upper" },
+    window: { x: 0.23, y: 0.18, level: "upper" },
+    "B site": { x: 0.15, y: 0.17, level: "upper" },
+    door: { x: 0.24, y: 0.27, level: "upper" },
+    mid: { x: 0.5, y: 0.4, level: "upper" },
+    xbox: { x: 0.58, y: 0.38, level: "upper" },
+    "lower tunnels": { x: 0.39, y: 0.49, level: "upper" },
+    "top mid": { x: 0.49, y: 0.29, level: "upper" },
   },
   Ancient: {
     "A main": { x: 0.3, y: 0.72, level: "upper" },
@@ -360,18 +385,18 @@ const RADAR_ZONE_POSITIONS = {
     boost: { x: 0.41, y: 0.48, level: "upper" },
   },
   Anubis: {
-    "A main": { x: 0.31, y: 0.73, level: "upper" },
-    heaven: { x: 0.22, y: 0.61, level: "upper" },
-    "bridge::A": { x: 0.23, y: 0.48, level: "upper" },
-    "site::A": { x: 0.14, y: 0.62, level: "upper" },
-    canal: { x: 0.83, y: 0.25, level: "upper" },
-    pillar: { x: 0.73, y: 0.23, level: "upper" },
-    "site::B": { x: 0.69, y: 0.15, level: "upper" },
-    "bridge::B": { x: 0.61, y: 0.22, level: "upper" },
-    mid: { x: 0.5, y: 0.5, level: "upper" },
-    connector: { x: 0.45, y: 0.37, level: "upper" },
-    water: { x: 0.55, y: 0.46, level: "upper" },
-    "top mid": { x: 0.5, y: 0.62, level: "upper" },
+    "A main": { x: 0.18, y: 0.76, level: "upper" },
+    heaven: { x: 0.28, y: 0.3, level: "upper" },
+    "bridge::A": { x: 0.35, y: 0.39, level: "upper" },
+    "site::A": { x: 0.24, y: 0.56, level: "upper" },
+    canal: { x: 0.84, y: 0.22, level: "upper" },
+    pillar: { x: 0.72, y: 0.31, level: "upper" },
+    "site::B": { x: 0.81, y: 0.18, level: "upper" },
+    "bridge::B": { x: 0.66, y: 0.33, level: "upper" },
+    mid: { x: 0.5, y: 0.53, level: "upper" },
+    connector: { x: 0.55, y: 0.44, level: "upper" },
+    water: { x: 0.57, y: 0.63, level: "upper" },
+    "top mid": { x: 0.45, y: 0.72, level: "upper" },
   },
 };
 
@@ -1233,11 +1258,44 @@ function resolveRadarPosition(mapName, zone, site) {
   return RADAR_SITE_FALLBACKS[mapName]?.[site] ?? { x: 0.5, y: 0.5, level: "upper" };
 }
 
+function getRadarViewBox(mapName, level = "upper") {
+  return RADAR_VIEWBOXES[mapName]?.[level] ?? { left: 0, top: 0, width: 1, height: 1 };
+}
+
+const RADAR_SCATTER_OFFSETS = [
+  { x: 0, y: 0 },
+  { x: 0.008, y: -0.006 },
+  { x: -0.007, y: 0.008 },
+  { x: 0.006, y: 0.007 },
+  { x: -0.008, y: -0.005 },
+];
+
+function hashRadarSeed(value = "") {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function scatterRadarPosition(position, seed) {
+  const offset = RADAR_SCATTER_OFFSETS[hashRadarSeed(seed) % RADAR_SCATTER_OFFSETS.length];
+  return {
+    ...position,
+    x: clamp(position.x + offset.x, 0.02, 0.98),
+    y: clamp(position.y + offset.y, 0.02, 0.98),
+  };
+}
+
 function buildRadarMarkers(events = [], mapName) {
   const kills = events
     .filter((event) => event.kind === "kill")
     .map((event, index, source) => {
-      const position = resolveRadarPosition(mapName, event.zone, event.site);
+      const position = scatterRadarPosition(
+        resolveRadarPosition(mapName, event.zone, event.site),
+        `${mapName}:${event.zone ?? event.site ?? "unknown"}:${event.id}:${index}`
+      );
       return {
         id: `${event.id}_${index}`,
         x: position.x,
@@ -2755,7 +2813,7 @@ function LiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_360px] gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_380px] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -2902,7 +2960,7 @@ function LiveMatchView({
               </div>
             </Panel>
           </div>
-          <div className="grid min-h-0 grid-cols-[420px_minmax(0,1fr)] gap-3 overflow-hidden">
+          <div className="grid min-h-0 grid-cols-[380px_minmax(0,1fr)] gap-3 overflow-hidden">
             <Panel title="Radar" subtitle="Death markers stay on the map for the whole round." className="overflow-hidden p-3">
               <div className="mb-3 flex justify-end">
                 <button
@@ -3800,6 +3858,100 @@ function LeaderCard({ title, nickname, rating, side }) {
   );
 }
 
+function RadarImageStage({
+  src,
+  alt,
+  mapName,
+  level = "upper",
+  markers,
+  sideLookup,
+  compact = false,
+  expanded = false,
+  label = "Upper",
+}) {
+  const areaRef = useRef(null);
+  const viewBox = getRadarViewBox(mapName, level);
+  const [imageFrame, setImageFrame] = useState({ left: 0, top: 0, width: 0, height: 0 });
+
+  useLayoutEffect(() => {
+    const areaNode = areaRef.current;
+    if (!areaNode || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const syncFrame = () => {
+      const areaRect = areaNode.getBoundingClientRect();
+      const aspectRatio = viewBox.width / viewBox.height;
+      let width = areaRect.width;
+      let height = width / aspectRatio;
+
+      if (height > areaRect.height) {
+        height = areaRect.height;
+        width = height * aspectRatio;
+      }
+
+      setImageFrame({
+        left: (areaRect.width - width) / 2,
+        top: (areaRect.height - height) / 2,
+        width,
+        height,
+      });
+    };
+
+    syncFrame();
+    const observer = new ResizeObserver(syncFrame);
+    observer.observe(areaNode);
+    window.addEventListener("resize", syncFrame);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncFrame);
+    };
+  }, [compact, expanded, markers.length, viewBox.height, viewBox.width]);
+
+  return (
+    <div ref={areaRef} className="relative h-full w-full">
+      <div
+        className="absolute overflow-hidden rounded-xl"
+        style={{
+          left: imageFrame.left,
+          top: imageFrame.top,
+          width: imageFrame.width,
+          height: imageFrame.height,
+        }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          draggable="false"
+          className="pointer-events-none absolute select-none"
+          style={{
+            left: `${(-viewBox.left / viewBox.width) * 100}%`,
+            top: `${(-viewBox.top / viewBox.height) * 100}%`,
+            width: `${(1 / viewBox.width) * 100}%`,
+            height: `${(1 / viewBox.height) * 100}%`,
+            maxWidth: "none",
+          }}
+        />
+      </div>
+      <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
+        {label}
+      </div>
+      {markers.map((marker) => (
+        <RadarDeathMarker
+          key={marker.id}
+          marker={marker}
+          victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
+          compact={compact}
+          expanded={expanded}
+          imageFrame={imageFrame}
+          viewBox={viewBox}
+        />
+      ))}
+    </div>
+  );
+}
+
 function RadarPanel({
   mapName,
   markers,
@@ -3812,6 +3964,7 @@ function RadarPanel({
   const assets = RADAR_ASSETS[mapName];
   const upperMarkers = markers.filter((marker) => marker.level !== "lower");
   const lowerMarkers = markers.filter((marker) => marker.level === "lower");
+  const compactStage = compact || !showSidebar;
 
   if (!assets?.upper) {
     return (
@@ -3825,54 +3978,54 @@ function RadarPanel({
     <div
       className={classNames(
         "grid h-full min-h-0 gap-3",
-        compact || !showSidebar ? "grid-cols-1" : expanded ? "grid-cols-[minmax(0,1fr)_260px]" : "grid-cols-[minmax(0,1fr)_176px]"
+        compact || !showSidebar
+          ? "grid-cols-1 grid-rows-[minmax(0,1fr)_auto]"
+          : expanded
+            ? "grid-cols-[minmax(0,1fr)_260px]"
+            : "grid-cols-[minmax(0,1fr)_176px]"
       )}
     >
       <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#050608] p-3">
-        <div className={classNames("relative aspect-square h-full max-w-full", expanded ? "max-h-[78vh]" : "")}>
-          <img src={assets.upper} alt={`${mapName} radar`} className="absolute inset-0 h-full w-full object-contain" draggable="false" />
-          {upperMarkers.map((marker) => (
-            <RadarDeathMarker
-              key={marker.id}
-              marker={marker}
-              victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
-              compact={compact}
-              expanded={expanded}
-            />
-          ))}
-          <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
-            Upper
-          </div>
+        <div className={classNames("relative h-full w-full", compactStage ? "max-w-[460px]" : "", expanded ? "max-h-[78vh]" : "")}>
+          <RadarImageStage
+            src={assets.upper}
+            alt={`${mapName} radar`}
+            mapName={mapName}
+            level="upper"
+            markers={upperMarkers}
+            sideLookup={sideLookup}
+            compact={compact}
+            expanded={expanded}
+            label="Upper"
+          />
           {assets.lower && (
             <div className={classNames("absolute overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl", expanded ? "bottom-4 right-4 h-[38%] w-[38%]" : "bottom-3 right-3 h-[42%] w-[42%]")}>
-              <img src={assets.lower} alt={`${mapName} lower radar`} className="absolute inset-0 h-full w-full object-contain" draggable="false" />
-              {lowerMarkers.map((marker) => (
-                <RadarDeathMarker
-                  key={marker.id}
-                  marker={marker}
-                  victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
-                  compact
-                  expanded={expanded}
-                />
-              ))}
-              <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-border bg-surface/80 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-muted">
-                Lower
-              </div>
-            </div>
-          )}
-          {!showSidebar && (
-            <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-2xl border border-border bg-surface/85 px-3 py-2 backdrop-blur-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Last Frag</div>
-                <div className="numbers text-xs text-accent">{latestMarker?.clock ?? "Waiting"}</div>
-              </div>
-              <div className="mt-1 max-h-10 overflow-hidden text-xs leading-5 text-text">
-                {latestMarker?.label ?? "Kill markers will stay on the radar during live playback."}
-              </div>
+              <RadarImageStage
+                src={assets.lower}
+                alt={`${mapName} lower radar`}
+                mapName={mapName}
+                level="lower"
+                markers={lowerMarkers}
+                sideLookup={sideLookup}
+                compact
+                expanded={expanded}
+                label="Lower"
+              />
             </div>
           )}
         </div>
       </div>
+      {(compact || !showSidebar) && (
+        <div className="rounded-2xl border border-border bg-card/60 px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Last Frag</div>
+            <div className="numbers text-xs text-accent">{latestMarker?.clock ?? "Waiting"}</div>
+          </div>
+          <div className="mt-1 text-sm leading-5 text-text">
+            {latestMarker?.label ?? "Kill markers will stay on the radar during live playback."}
+          </div>
+        </div>
+      )}
       {!compact && showSidebar && (
       <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
         <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
@@ -3918,18 +4071,25 @@ function RadarPanel({
   );
 }
 
-function RadarDeathMarker({ marker, victimSide, compact = false, expanded = false }) {
+function RadarDeathMarker({ marker, victimSide, compact = false, expanded = false, imageFrame, viewBox }) {
   const victimTone =
     victimSide === "CT"
       ? "text-sky-300 drop-shadow-[0_0_10px_rgba(91,141,217,0.75)]"
       : "text-accent drop-shadow-[0_0_10px_rgba(245,166,35,0.75)]";
+  const width = imageFrame?.width ?? 0;
+  const height = imageFrame?.height ?? 0;
+  if (!width || !height) {
+    return null;
+  }
+  const normalizedX = clamp((marker.x - viewBox.left) / viewBox.width, 0.02, 0.98);
+  const normalizedY = clamp((marker.y - viewBox.top) / viewBox.height, 0.02, 0.98);
 
   return (
     <div
       className="pointer-events-none absolute"
       style={{
-        left: `${clamp(marker.x, 0.03, 0.97) * 100}%`,
-        top: `${clamp(marker.y, 0.03, 0.97) * 100}%`,
+        left: imageFrame.left + normalizedX * width,
+        top: imageFrame.top + normalizedY * height,
         transform: "translate(-50%, -50%)",
       }}
       title={marker.label}

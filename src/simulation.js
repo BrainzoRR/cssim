@@ -1556,6 +1556,15 @@ function calculateDerivedStats(stats) {
       2.5 * (stats.entriesWon / roundsPlayed) +
       stats.openingKills / roundsPlayed) /
     3;
+  const rawRating =
+    (kpr * 0.73 +
+      (0.44 - dpr) * 0.54 +
+      (adr / 100) * 0.38 +
+      kast * 0.16 +
+      impact * 0.1) *
+    1.08;
+  const sampleWeight = clamp((roundsPlayed - 1) / 8, 0.14, 1);
+  const stabilizedRating = 1 + (rawRating - 1) * sampleWeight;
 
   return {
     adr: round(adr, 1),
@@ -1563,16 +1572,7 @@ function calculateDerivedStats(stats) {
     hsPercent: round((stats.headshots / Math.max(1, stats.kills)) * 100, 0),
     impact: round(impact, 2),
     rating: round(
-      clamp(
-        (kpr * 0.73 +
-          (0.44 - dpr) * 0.54 +
-          (adr / 100) * 0.38 +
-          kast * 0.16 +
-          impact * 0.1) *
-          2.15,
-        0.2,
-        3.25
-      ),
+      clamp(stabilizedRating, 0.35, 2.08),
       2
     ),
   };
@@ -2896,7 +2896,9 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     );
   }
 
-  const duelLoop = bombPlanted ? 3 : 2;
+  const duelLoop =
+    (bombPlanted ? 7 : 5) +
+    (strategy.id === "split" || strategy.id.startsWith("execute") ? 1 : 0);
   for (let duelIndex = 0; duelIndex < duelLoop; duelIndex += 1) {
     const aliveTs = getAlivePlayers(teamStates[tKey]).length;
     const aliveCTs = getAlivePlayers(teamStates[ctKey]).length;
