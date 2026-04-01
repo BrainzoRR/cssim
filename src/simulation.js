@@ -1062,9 +1062,110 @@ function createSeedTeams() {
 export function createInitialAppData() {
   return {
     version: "1.0",
-    teams: createSeedTeams(),
+    teams: createCurrentSeedTeams(),
     matchHistory: [],
   };
+}
+
+function createCurrentSeedTeams() {
+  return [
+    normalizeTeam({
+      id: uid("team"),
+      name: "Vitality",
+      tag: "VIT",
+      logo: "🐝",
+      region: "EU",
+      coach: {
+        id: uid("coach"),
+        name: "XTQZZZ",
+        nickname: "XTQZZZ",
+        tacticalRating: 94,
+        motivationRating: 92,
+        mapKnowledge: 93,
+        preferredMaps: ["Nuke", "Inferno", "Mirage", "Anubis", "Dust", "Ancient", "Overpass"],
+      },
+      preferredMaps: ["Nuke", "Inferno", "Mirage", "Anubis", "Dust", "Ancient", "Overpass"],
+      players: [
+        makeSeedPlayer("ZywOo", "AWPer", { aim: 99, gameSense: 97, clutch: 96, utility: 78, entry: 87, consistency: 97 }, { nationality: "France", age: 25 }),
+        makeSeedPlayer("ropz", "Lurker", { aim: 95, gameSense: 95, clutch: 93, utility: 78, entry: 82, consistency: 96 }, { nationality: "Estonia", age: 26 }),
+        makeSeedPlayer("flameZ", "Entry Fragger", { aim: 92, gameSense: 88, clutch: 84, utility: 74, entry: 95, consistency: 89 }, { nationality: "Israel", age: 23 }),
+        makeSeedPlayer("mezii", "Support", { aim: 84, gameSense: 89, clutch: 78, utility: 91, entry: 74, consistency: 86 }, { nationality: "United Kingdom", age: 27 }),
+        makeSeedPlayer("apEX", "IGL", { aim: 80, gameSense: 95, clutch: 84, utility: 88, entry: 79, consistency: 88 }, { isCaptain: true, nationality: "France", age: 33 }),
+      ],
+    }),
+    normalizeTeam({
+      id: uid("team"),
+      name: "FURIA",
+      tag: "FURIA",
+      logo: "🐆",
+      region: "BR",
+      coach: {
+        id: uid("coach"),
+        name: "sidde",
+        nickname: "sidde",
+        tacticalRating: 88,
+        motivationRating: 86,
+        mapKnowledge: 87,
+        preferredMaps: ["Anubis", "Dust", "Mirage", "Nuke", "Inferno", "Ancient", "Overpass"],
+      },
+      preferredMaps: ["Anubis", "Dust", "Mirage", "Nuke", "Inferno", "Ancient", "Overpass"],
+      players: [
+        makeSeedPlayer("FalleN", "IGL", { aim: 84, gameSense: 96, clutch: 88, utility: 86, entry: 76, consistency: 89 }, { isCaptain: true, nationality: "Brazil", age: 35 }),
+        makeSeedPlayer("molodoy", "AWPer", { aim: 90, gameSense: 84, clutch: 80, utility: 70, entry: 78, consistency: 83 }, { nationality: "Kazakhstan", age: 20 }),
+        makeSeedPlayer("KSCERATO", "Lurker", { aim: 94, gameSense: 92, clutch: 90, utility: 76, entry: 82, consistency: 94 }, { nationality: "Brazil", age: 26 }),
+        makeSeedPlayer("yuurih", "Support", { aim: 90, gameSense: 90, clutch: 84, utility: 89, entry: 80, consistency: 92 }, { nationality: "Brazil", age: 26 }),
+        makeSeedPlayer("YEKINDAR", "Entry Fragger", { aim: 92, gameSense: 84, clutch: 83, utility: 71, entry: 97, consistency: 82 }, { nationality: "Latvia", age: 27 }),
+      ],
+    }),
+    normalizeTeam({
+      id: uid("team"),
+      name: "MOUZ",
+      tag: "MOUZ",
+      logo: "🐭",
+      region: "EU",
+      coach: {
+        id: uid("coach"),
+        name: "sycrone",
+        nickname: "sycrone",
+        tacticalRating: 90,
+        motivationRating: 88,
+        mapKnowledge: 89,
+        preferredMaps: ["Mirage", "Nuke", "Dust", "Inferno", "Ancient", "Anubis", "Overpass"],
+      },
+      preferredMaps: ["Mirage", "Nuke", "Dust", "Inferno", "Ancient", "Anubis", "Overpass"],
+      players: [
+        makeSeedPlayer("Brollan", "IGL", { aim: 88, gameSense: 92, clutch: 84, utility: 82, entry: 88, consistency: 88 }, { isCaptain: true, nationality: "Sweden", age: 23 }),
+        makeSeedPlayer("torzsi", "AWPer", { aim: 92, gameSense: 88, clutch: 83, utility: 70, entry: 79, consistency: 90 }, { nationality: "Hungary", age: 24 }),
+        makeSeedPlayer("xertioN", "Entry Fragger", { aim: 91, gameSense: 86, clutch: 82, utility: 73, entry: 95, consistency: 86 }, { nationality: "Israel", age: 21 }),
+        makeSeedPlayer("Jimpphat", "Lurker", { aim: 89, gameSense: 90, clutch: 85, utility: 77, entry: 81, consistency: 91 }, { nationality: "Finland", age: 19 }),
+        makeSeedPlayer("Spinx", "Support", { aim: 90, gameSense: 91, clutch: 86, utility: 88, entry: 81, consistency: 90 }, { nationality: "Israel", age: 25 }),
+      ],
+    }),
+    normalizeTeam({
+      id: uid("team"),
+      name: "Falcons",
+      tag: "FLCN",
+      logo: "🦅",
+      region: "MENA",
+      coach: {
+        id: uid("coach"),
+        name: "zonic",
+        nickname: "zonic",
+        tacticalRating: 94,
+        motivationRating: 91,
+        mapKnowledge: 92,
+        preferredMaps: ["Mirage", "Dust", "Nuke", "Inferno", "Ancient", "Anubis", "Overpass"],
+      },
+      preferredMaps: ["Mirage", "Dust", "Nuke", "Inferno", "Ancient", "Anubis", "Overpass"],
+      players: [
+        makeSeedPlayer("kyxsan", "IGL", { aim: 82, gameSense: 94, clutch: 84, utility: 88, entry: 76, consistency: 88 }, { isCaptain: true, nationality: "North Macedonia", age: 25 }),
+        makeSeedPlayer("NiKo", "Entry Fragger", { aim: 98, gameSense: 95, clutch: 93, utility: 74, entry: 98, consistency: 95 }, { nationality: "Bosnia and Herzegovina", age: 29 }),
+        makeSeedPlayer("m0NESY", "AWPer", { aim: 98, gameSense: 92, clutch: 89, utility: 75, entry: 88, consistency: 95 }, { nationality: "Russia", age: 20 }),
+        makeSeedPlayer("TeSeS", "Entry Fragger", { aim: 89, gameSense: 86, clutch: 82, utility: 74, entry: 90, consistency: 87 }, { nationality: "Denmark", age: 25 }),
+        makeSeedPlayer("kyousuke", "Lurker", { aim: 92, gameSense: 86, clutch: 80, utility: 72, entry: 91, consistency: 82 }, { nationality: "Russia", age: 18 }),
+      ],
+    }),
+  ];
 }
 
 function preferenceWeight(list, map) {

@@ -178,6 +178,56 @@ const COPY = {
   },
 };
 
+const COPY_RU = {
+  nav_home: "Главная",
+  nav_teams: "Команды",
+  nav_match_setup: "Матч",
+  nav_live: "Live Match",
+  nav_results: "Результаты",
+  nav_history: "История",
+  app_title: "CS2 Pro Match Simulator",
+  app_tagline: "Темная серверная. Полный контроль серии.",
+  language: "Язык",
+  last_saved: "Последнее сохранение",
+  not_saved: "Еще не сохранено",
+  export_all_data: "Экспортировать все данные",
+  import_data: "Импортировать данные",
+  dashboard: "Дашборд",
+  quick_start: "Быстрый старт",
+  top_teams: "Топ команд",
+  recent_results: "Последние результаты",
+  open_team_manager: "Открыть менеджер команд",
+  open_history: "Открыть историю",
+  team_manager: "Менеджер команд",
+  new_team: "Новая команда",
+  save_team: "Сохранить команду",
+  delete_team: "Удалить",
+  match_setup: "Настройка матча",
+  start_veto: "Начать veto",
+  series_rules: "Правила серии",
+  checklist: "Чеклист",
+  veto_screen: "Экран veto",
+  series_order: "Порядок карт",
+  round_history: "История раундов",
+  live_match: "Live Match",
+  round_hud: "HUD раунда",
+  live_feed: "Live лента",
+  economy_graph: "График экономики",
+  series_results: "Итоги серии",
+  highlights: "Хайлайты",
+  map_breakdown: "Разбор карт",
+  full_player_stats: "Полная статистика игроков",
+  history: "История",
+  clear_history: "Очистить историю",
+  filter_by_team: "Фильтр по команде",
+  combined: "Все вместе",
+  by_team: "По командам",
+  player: "Игрок",
+  team: "Команда",
+  rating: "Рейтинг",
+  open_team_manager_short: "Менеджер команд",
+};
+
 function useI18n() {
   const context = useContext(LanguageContext);
   if (!context) {
@@ -194,6 +244,20 @@ function defaultSetup(teams) {
     speed: "live",
     showDetailedLogs: true,
   };
+}
+
+const LEGACY_SEED_SIGNATURE = ["FAZE::FAZE", "G2::G2", "NAVI::NAVI", "VIRTUS.PRO::VP"];
+
+function shouldRefreshLegacySeeds(teams) {
+  if (teams.length !== LEGACY_SEED_SIGNATURE.length) {
+    return false;
+  }
+
+  const signature = teams
+    .map((team) => `${team.name.toUpperCase()}::${team.tag.toUpperCase()}`)
+    .sort();
+
+  return signature.every((value, index) => value === LEGACY_SEED_SIGNATURE[index]);
 }
 
 function loadStoredSnapshot() {
@@ -218,14 +282,18 @@ function loadStoredSnapshot() {
     }
 
     const parsed = JSON.parse(raw);
-    const teams = (parsed.state?.teams ?? parsed.teams ?? fallback.teams).map(normalizeTeam);
+    const storedTeams = (parsed.state?.teams ?? parsed.teams ?? fallback.teams).map(normalizeTeam);
+    const teams = shouldRefreshLegacySeeds(storedTeams) ? fallback.teams : storedTeams;
     const matchHistory = parsed.state?.matchHistory ?? parsed.matchHistory ?? [];
     return {
       state: {
         teams,
         matchHistory,
         activeView: parsed.state?.activeView ?? "home",
-        selectedTeamId: parsed.state?.selectedTeamId ?? teams[0]?.id ?? null,
+        selectedTeamId:
+          teams.some((team) => team.id === parsed.state?.selectedTeamId)
+            ? parsed.state?.selectedTeamId
+            : teams[0]?.id ?? null,
         currentMatch: parsed.state?.currentMatch ?? null,
         resultsData: parsed.state?.resultsData ?? null,
       },
@@ -386,7 +454,7 @@ function App() {
   const roundIntervalRef = useRef(null);
   const progressIntervalRef = useRef(null);
   const roundStartedAtRef = useRef(Date.now());
-  const t = (key) => COPY[language]?.[key] ?? COPY.en[key] ?? key;
+  const t = (key) => (language === "ru" ? COPY_RU[key] : COPY[language]?.[key]) ?? COPY.en[key] ?? key;
 
   const pushToast = (message, tone = "success") => {
     const id = `${Date.now()}_${Math.random()}`;
@@ -1478,19 +1546,28 @@ function TeamsView({
                   </select>
                 </label>
                 <label className="text-sm text-muted">
-                  Logo / Emoji / Image URL
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      type="text"
-                      value={teamDraft.logo}
-                      onChange={(event) => updateDraft((current) => ({ ...current, logo: event.target.value }))}
-                      className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-text"
-                    />
-                    <button type="button" onClick={() => logoInputRef.current?.click()} className="rounded-xl border border-border px-3 py-2 text-sm text-text">
-                      Upload
-                    </button>
-                    <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={onLogoFile} />
-                  </div>
+                    Logo / Emoji / Image URL / PNG
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={teamDraft.logo}
+                        onChange={(event) => updateDraft((current) => ({ ...current, logo: event.target.value }))}
+                        className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-text"
+                      />
+                      <button type="button" onClick={() => logoInputRef.current?.click()} className="rounded-xl border border-border px-3 py-2 text-sm text-text">
+                        Upload PNG
+                      </button>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={onLogoFile}
+                      />
+                    </div>
+                    <span className="mt-2 block text-xs text-muted">
+                      PNG, JPG, SVG, and WebP logos are converted to a local data URL and saved in browser storage.
+                    </span>
                 </label>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1965,6 +2042,8 @@ function LiveMatchView({ match, roundProgress }) {
   const latestRound = activeMap.lastRoundSummary;
   const teamAPlayers = latestRound?.loadouts.teamA ?? liveRowsFromTeam(activeMap.teamAState);
   const teamBPlayers = latestRound?.loadouts.teamB ?? liveRowsFromTeam(activeMap.teamBState);
+  const teamAState = activeMap.teamAState;
+  const teamBState = activeMap.teamBState;
   const roundClock = Math.max(0, Math.round(115 * (1 - roundProgress)));
   const economyData = activeMap.economyHistory.map((entry) => ({
     ...entry,
@@ -1972,36 +2051,15 @@ function LiveMatchView({ match, roundProgress }) {
   }));
 
   return (
-    <div className="grid h-[calc(100vh-108px)] grid-cols-[250px_1fr_330px] gap-4 overflow-hidden">
-      <Panel title={t("round_history")} subtitle="Compact sidebar timeline for every round." className="flex h-full flex-col overflow-hidden p-4">
-        <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-          {[...activeMap.rounds].reverse().map((roundSummary) => (
-            <div
-              key={`${roundSummary.roundNumber}_${roundSummary.mapName}`}
-              className={classNames(
-                "rounded-xl border p-3",
-                roundSummary.winnerSide === "CT"
-                  ? "border-sky-500/30 bg-sky-500/10"
-                  : "border-accent/30 bg-accent/10"
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <div className="font-display text-lg text-text">{roundSummary.displayRound}</div>
-                <div className="numbers text-xs">
-                  {roundSummary.scoreAfter.teamA}-{roundSummary.scoreAfter.teamB}
-                </div>
-              </div>
-              <div className="mt-1 text-xs text-muted">
-                {roundSummary.winnerSide} win - {roundSummary.roundType.teamA}/{roundSummary.roundType.teamB}
-              </div>
-              <div className="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
-                <span>{roundSummary.bombPlanted ? "Plant yes" : "Plant no"}</span>
-                <span>{reasonLabel(roundSummary.reason)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
+    <div className="grid h-[calc(100vh-102px)] min-h-0 grid-cols-[320px_minmax(0,1fr)_320px] gap-3 overflow-hidden">
+      <BroadcastTeamColumn
+        team={match.teamA}
+        score={activeMap.score.teamA}
+        side={teamAState.side}
+        players={teamAPlayers}
+        coach={match.teamA.coach}
+        timeoutsRemaining={match.timeoutsRemaining.teamA}
+      />
       <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
         <Panel title={t("live_match")} subtitle="Compact fullscreen HUD with scores, sides, economy, and players." className="p-4">
           <div className="rounded-2xl border border-border bg-card/70 p-4">
@@ -2026,54 +2084,129 @@ function LiveMatchView({ match, roundProgress }) {
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[1fr_180px] gap-4 overflow-hidden">
-          <Panel title={t("round_hud")} subtitle="Current summary, timeout overlays, and leaders." className="flex min-h-0 flex-col overflow-hidden p-4">
-            {latestRound ? (
-              <div className="flex min-h-0 flex-1 flex-col gap-3">
-                <div className="rounded-2xl border border-border bg-card/60 p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-muted">Latest Round</div>
-                      <div className="font-display text-2xl text-text">{latestRound.strategy}</div>
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_176px] gap-3 overflow-hidden">
+          <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
+            <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
+              <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {[...activeMap.rounds].reverse().map((roundSummary) => (
+                  <div
+                    key={`${roundSummary.roundNumber}_${roundSummary.mapName}`}
+                    className={classNames(
+                      "rounded-xl border px-3 py-2",
+                      roundSummary.winnerSide === "CT"
+                        ? "border-sky-500/25 bg-sky-500/10"
+                        : "border-accent/25 bg-accent/10"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-display text-lg text-text">{roundSummary.displayRound}</div>
+                      <div className="numbers text-xs text-text">
+                        {roundSummary.scoreAfter.teamA}-{roundSummary.scoreAfter.teamB}
+                      </div>
                     </div>
-                    <div className="rounded-full border border-border px-3 py-1 text-xs text-muted">
-                      {reasonLabel(latestRound.reason)}
+                    <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted">
+                      {roundSummary.winnerSide} · A {roundTypeLabel(roundSummary.roundType.teamA)} / B {roundTypeLabel(roundSummary.roundType.teamB)}
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted">
+                      {roundSummary.bombPlanted ? "Plant" : "No plant"} · {reasonLabel(roundSummary.reason)}
                     </div>
                   </div>
-                  {latestRound.timeoutCalled && (
-                    <div className="mt-3 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm text-accent">
-                      Tactical timeout used by {latestRound.timeoutCalled === "teamA" ? match.teamA.name : match.teamB.name}
-                    </div>
-                  )}
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-border bg-surface/80 p-3">
-                      <div className="text-xs uppercase tracking-[0.18em] text-muted">Best Rating Team A</div>
-                      <div className="mt-1 font-display text-2xl text-text">
-                        {latestRound.spectatorLeaders.teamA.nickname}
+                ))}
+              </div>
+            </Panel>
+            <Panel title={t("round_hud")} subtitle="Latest call, leaders, clutch state, and money flow." className="min-h-0 overflow-hidden p-3">
+              {latestRound ? (
+                <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-3">
+                  <div className="rounded-2xl border border-border bg-card/60 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Latest Round</div>
+                        <div className="font-display text-3xl text-text">{latestRound.strategy}</div>
+                        <div className="mt-1 text-sm text-muted">
+                          {latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by {reasonLabel(latestRound.reason)}
+                        </div>
                       </div>
-                      <div className="numbers text-accent">{latestRound.spectatorLeaders.teamA.rating}</div>
-                    </div>
-                    <div className="rounded-xl border border-border bg-surface/80 p-3">
-                      <div className="text-xs uppercase tracking-[0.18em] text-muted">Best Rating Team B</div>
-                      <div className="mt-1 font-display text-2xl text-text">
-                        {latestRound.spectatorLeaders.teamB.nickname}
+                      <div className="rounded-full border border-border px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+                        {latestRound.displayRound}
                       </div>
-                      <div className="numbers text-accent">{latestRound.spectatorLeaders.teamB.rating}</div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted">
+                      <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                        A buy: <span className="ml-1 uppercase text-text">{roundTypeLabel(latestRound.roundType.teamA)}</span>
+                      </div>
+                      <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                        B buy: <span className="ml-1 uppercase text-text">{roundTypeLabel(latestRound.roundType.teamB)}</span>
+                      </div>
+                      <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                        {latestRound.bombPlanted ? `Plant ${latestRound.plantSite ?? ""}` : "No plant"}
+                      </div>
+                    </div>
+                    {latestRound.timeoutCalled && (
+                      <div className="mt-3 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
+                        Tactical timeout: {latestRound.timeoutCalled === "teamA" ? match.teamA.coach.nickname : match.teamB.coach.nickname}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <LeaderCard
+                      title={match.teamA.tag}
+                      nickname={latestRound.spectatorLeaders.teamA.nickname}
+                      rating={latestRound.spectatorLeaders.teamA.rating}
+                      side={teamAState.side}
+                    />
+                    <LeaderCard
+                      title={match.teamB.tag}
+                      nickname={latestRound.spectatorLeaders.teamB.nickname}
+                      rating={latestRound.spectatorLeaders.teamB.rating}
+                      side={teamBState.side}
+                    />
+                  </div>
+                  <div className="grid min-h-0 grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-border bg-card/60 p-4">
+                      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Spotlight</div>
+                      <div className="mt-2 font-display text-2xl text-text">
+                        {latestRound.clutch ? `${latestRound.clutch.nickname} 1v${latestRound.clutch.size}` : "Structured round"}
+                      </div>
+                      <div className="mt-2 text-sm text-muted">
+                        {latestRound.highlight ?? "No special swing moment on the latest round."}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-card/60 p-4">
+                      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Money Flow</div>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{match.teamA.tag}</div>
+                          <div className="mt-1 numbers text-lg text-text">{formatMoney(latestRound.economy.teamATotalMoney)}</div>
+                        </div>
+                        <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{match.teamB.tag}</div>
+                          <div className="mt-1 numbers text-lg text-text">{formatMoney(latestRound.economy.teamBTotalMoney)}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 text-sm text-muted">
+                        Equip value {formatMoney(latestRound.economy.teamAEquipmentValue)} / {formatMoney(latestRound.economy.teamBEquipmentValue)}
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-hidden">
-                  <LivePlayerTable title={`${match.teamA.name} Players`} teamKey="teamA" players={teamAPlayers} />
-                  <LivePlayerTable title={`${match.teamB.name} Players`} teamKey="teamB" players={teamBPlayers} />
+              ) : (
+                <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-border px-6 text-center text-sm text-muted">
+                  Waiting for the first round to resolve.
                 </div>
+              )}
+            </Panel>
+            <Panel title={t("live_feed")} subtitle="Newest play-by-play stays on top for casting." className="flex min-h-0 flex-col overflow-hidden p-3">
+              <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {activeMap.allLogs.slice(0, 20).map((log) => (
+                  <div key={log.id} className="rounded-xl border border-border bg-card/60 px-3 py-2.5">
+                    <div className="numbers text-[11px] text-accent">[{log.clock}] {log.mapName} {`R${log.roundNumber}`}</div>
+                    <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted">
-                Waiting for the first round to resolve.
-              </div>
-            )}
-          </Panel>
-          <Panel title={t("economy_graph")} subtitle="Equipment value by round." className="overflow-hidden p-4">
+            </Panel>
+          </div>
+          <Panel title={t("economy_graph")} subtitle="Equipment value by round." className="overflow-hidden p-3">
             <div className="h-full min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={economyData}>
@@ -2096,16 +2229,15 @@ function LiveMatchView({ match, roundProgress }) {
           </Panel>
         </div>
       </div>
-      <Panel title={t("live_feed")} subtitle="Newest play-by-play events stay at the top." className="flex h-full flex-col overflow-hidden p-4">
-        <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-              {activeMap.allLogs.slice(0, 24).map((log) => (
-                <div key={log.id} className="rounded-xl border border-border bg-card/60 p-3">
-                  <div className="numbers text-xs text-accent">[{log.clock}] {log.mapName} {`R${log.roundNumber}`}</div>
-                  <div className="mt-1 text-sm text-text">{log.label}</div>
-                </div>
-              ))}
-        </div>
-      </Panel>
+      <BroadcastTeamColumn
+        team={match.teamB}
+        score={activeMap.score.teamB}
+        side={teamBState.side}
+        players={teamBPlayers}
+        coach={match.teamB.coach}
+        timeoutsRemaining={match.timeoutsRemaining.teamB}
+        reverse
+      />
     </div>
   );
 }
@@ -2127,61 +2259,172 @@ function TeamHeader({ team, score, side, reverse = false }) {
   );
 }
 
-function LivePlayerTable({ title, teamKey, players }) {
+function sideToneClasses(side) {
+  return side === "CT"
+    ? {
+        border: "border-sky-500/25",
+        bg: "bg-sky-500/10",
+        text: "text-sky-300",
+        bar: "bg-sky-400",
+      }
+    : {
+        border: "border-accent/25",
+        bg: "bg-accent/10",
+        text: "text-accent",
+        bar: "bg-accent",
+      };
+}
+
+function shortRoleLabel(role) {
+  switch (role) {
+    case "Entry Fragger":
+      return "ENTRY";
+    case "AWPer":
+      return "AWP";
+    case "Lurker":
+      return "LURK";
+    case "Support":
+      return "SUP";
+    case "IGL":
+      return "IGL";
+    default:
+      return role.toUpperCase();
+  }
+}
+
+function roundTypeLabel(value) {
+  switch (value) {
+    case "antiEco":
+      return "anti";
+    case "full":
+      return "full";
+    case "force":
+      return "force";
+    case "eco":
+      return "eco";
+    case "pistol":
+      return "pistol";
+    default:
+      return value ?? "n/a";
+  }
+}
+
+function weaponBadgeClasses(weaponType) {
+  if (weaponType === "rifle") {
+    return "bg-accent/15 text-accent";
+  }
+
+  if (weaponType === "awp") {
+    return "bg-teal-500/15 text-teal-300";
+  }
+
+  if (weaponType === "smg") {
+    return "bg-emerald-500/15 text-emerald-300";
+  }
+
+  return "bg-white/10 text-white";
+}
+
+function BroadcastTeamColumn({ team, score, side, players, coach, timeoutsRemaining, reverse = false }) {
+  const tone = sideToneClasses(side);
+  const totalMoney = players.reduce((sum, player) => sum + player.money, 0);
+
   return (
-    <div className="flex min-h-0 flex-col rounded-2xl border border-border bg-card/70 p-3">
-      <div className="mb-2 font-display text-xl text-text">{title}</div>
-      <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-        {players.map((player) => (
-          <div key={player.id} className="rounded-xl border border-border bg-surface/80 p-2.5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="font-display text-lg text-text">{player.nickname}</div>
-                <div className="text-xs uppercase tracking-[0.18em] text-muted">{player.role}</div>
-              </div>
-              <div
-                className={classNames(
-                  "rounded-lg px-3 py-1 text-xs font-semibold",
-                  player.weaponType === "rifle"
-                    ? "bg-accent/15 text-accent"
-                    : player.weaponType === "awp"
-                      ? "bg-teal-500/15 text-teal-300"
-                      : "bg-white/10 text-white"
-                )}
-              >
-                [{player.weaponLabel}]
-              </div>
-            </div>
-            <div className="mt-2 grid grid-cols-[1fr_auto_auto_auto] items-center gap-2">
-              <div>
-                <div className="mb-1 flex items-center justify-between text-xs text-muted">
-                  <span>HP</span>
-                  <span>{player.alive ? player.hp : "X"}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-card">
-                  <div
-                    className={classNames("h-full rounded-full", teamKey === "teamA" ? "bg-accent" : "bg-sky-400")}
-                    style={{ width: `${player.alive ? player.hp : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="text-xs text-muted">
-                Armor {player.armor ? (player.helmet ? "H" : "K") : "No"}
-              </div>
-              <div className="text-xs text-muted">Util {player.utilityCount}</div>
-              <div className="numbers text-xs">{formatMoney(player.money)}</div>
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs">
-              <span className="numbers text-xs">
-                {player.kills}/{player.deaths}/{player.assists}
-              </span>
-              <span style={{ color: getRatingColor(player.rating) }} className="numbers text-xs">
-                {player.rating}
-              </span>
-            </div>
+    <section className="panel page-enter flex h-full min-h-0 flex-col overflow-hidden rounded-2xl p-3">
+      <div className={classNames("rounded-2xl border px-4 py-3", tone.border, tone.bg)}>
+        <div className={classNames("flex items-center justify-between gap-3", reverse && "flex-row-reverse text-right")}>
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">
+            {renderLogo(team.logo, team.tag.slice(0, 1))}
           </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-display text-3xl text-text">{team.tag}</div>
+            <div className={classNames("text-[11px] uppercase tracking-[0.22em]", tone.text)}>{side}-Side</div>
+          </div>
+          <div className={classNames("shrink-0 text-right", reverse && "text-left")}>
+            <div className="numbers text-4xl text-text">{score}</div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-muted">TO {timeoutsRemaining}</div>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-border bg-surface/80 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Bank</div>
+            <div className="mt-1 numbers text-sm text-text">{formatMoney(totalMoney)}</div>
+          </div>
+          <div className="rounded-xl border border-border bg-surface/80 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Coach</div>
+            <div className="mt-1 truncate text-sm text-text">{coach.nickname}</div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 grid min-h-0 flex-1 grid-rows-5 gap-2">
+        {players.map((player) => (
+          <BroadcastPlayerCard key={player.id} player={player} side={side} reverse={reverse} />
         ))}
       </div>
+    </section>
+  );
+}
+
+function BroadcastPlayerCard({ player, side, reverse = false }) {
+  const tone = sideToneClasses(side);
+
+  return (
+    <div
+      className={classNames(
+        "flex min-h-0 flex-col rounded-2xl border px-3 py-2.5",
+        player.alive ? classNames(tone.border, "bg-card/75") : "border-border bg-surface/60 opacity-70"
+      )}
+    >
+      <div className={classNames("flex items-start justify-between gap-2", reverse && "flex-row-reverse text-right")}>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="truncate font-display text-xl text-text">{player.nickname}</div>
+            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-muted">
+              {shortRoleLabel(player.role)}
+            </span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+            <span>HP {player.alive ? player.hp : "OUT"}</span>
+            <span>Armor {player.armor ? (player.helmet ? "H+K" : "K") : "No"}</span>
+            <span>Util {player.utilityCount}</span>
+          </div>
+        </div>
+        <div className={classNames("shrink-0 text-right", reverse && "text-left")}>
+          <div className={classNames("rounded-lg px-2.5 py-1 text-[11px] font-semibold", weaponBadgeClasses(player.weaponType))}>
+            [{player.weaponLabel}]
+          </div>
+          <div className="mt-2 numbers text-xs text-text">{formatMoney(player.money)}</div>
+        </div>
+      </div>
+      <div className="mt-2 flex-1">
+        <div className="h-2 overflow-hidden rounded-full bg-surface">
+          <div
+            className={classNames("h-full rounded-full transition-all", tone.bar)}
+            style={{ width: `${player.alive ? player.hp : 0}%` }}
+          />
+        </div>
+      </div>
+      <div className={classNames("mt-2 flex items-center justify-between gap-3 text-[11px]", reverse && "flex-row-reverse")}>
+        <span className="numbers text-text">
+          {player.kills}/{player.deaths}/{player.assists}
+        </span>
+        <span className="numbers text-muted">{player.alive ? `${player.hp} HP` : "Eliminated"}</span>
+        <span style={{ color: getRatingColor(player.rating) }} className="numbers text-text">
+          {player.rating}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function LeaderCard({ title, nickname, rating, side }) {
+  const tone = sideToneClasses(side);
+
+  return (
+    <div className={classNames("rounded-2xl border p-3", tone.border, "bg-card/60")}>
+      <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Top Rating {title}</div>
+      <div className="mt-1 font-display text-2xl text-text">{nickname}</div>
+      <div className={classNames("numbers text-lg", tone.text)}>{rating}</div>
     </div>
   );
 }
@@ -2318,14 +2561,14 @@ function ResultsView({ results }) {
         }
       >
         {statsMode === "combined" ? (
-          <StatsTable players={results.players} />
+          <StatsTable players={results.players} showTeam />
         ) : (
-          <div className="grid grid-cols-2 gap-6">
-            <div>
+          <div className="grid grid-cols-2 gap-8">
+            <div className="min-w-0">
               <div className="mb-3 font-display text-2xl text-text">{results.teamA.name}</div>
               <StatsTable players={teamAPlayers} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="mb-3 font-display text-2xl text-text">{results.teamB.name}</div>
               <StatsTable players={teamBPlayers} />
             </div>
@@ -2336,44 +2579,53 @@ function ResultsView({ results }) {
   );
 }
 
-function StatsTable({ players }) {
+function StatsTable({ players, showTeam = false }) {
   const { t } = useI18n();
+  const columns = showTeam
+    ? ["22%", "8%", "13%", "9%", "9%", "10%", "7%", "10%", "6%", "6%"]
+    : ["27%", "15%", "10%", "10%", "11%", "8%", "10%", "5%", "4%"];
+
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
+      <table className="min-w-full table-fixed text-[13px]">
+        <colgroup>
+          {columns.map((width, index) => (
+            <col key={index} style={{ width }} />
+          ))}
+        </colgroup>
         <thead className="text-left text-xs uppercase tracking-[0.2em] text-muted">
           <tr>
-            <th className="pb-3">{t("player")}</th>
-            <th className="pb-3">{t("team")}</th>
-            <th className="pb-3">K / D / A</th>
-            <th className="pb-3">{t("rating")}</th>
-            <th className="pb-3">ADR</th>
-            <th className="pb-3">KAST%</th>
-            <th className="pb-3">HS%</th>
-            <th className="pb-3">Clutches</th>
-            <th className="pb-3">Openings</th>
-            <th className="pb-3">Best Round</th>
+            <th className="px-3 pb-3">{t("player")}</th>
+            {showTeam && <th className="px-3 pb-3">{t("team")}</th>}
+            <th className="px-3 pb-3 text-right">K / D / A</th>
+            <th className="px-3 pb-3 text-right">{t("rating")}</th>
+            <th className="px-3 pb-3 text-right">ADR</th>
+            <th className="px-3 pb-3 text-right">KAST%</th>
+            <th className="px-3 pb-3 text-right">HS%</th>
+            <th className="px-3 pb-3 text-right">Clutches</th>
+            <th className="px-3 pb-3 text-right">Openings</th>
+            <th className="px-3 pb-3 text-right">Best Round</th>
           </tr>
         </thead>
         <tbody>
           {players.map((player) => (
             <tr key={`${player.teamKey}_${player.id}`} className="border-t border-border">
-              <td className="py-3 font-display text-xl text-text">{player.nickname}</td>
-              <td className="py-3 text-muted">{player.teamTag}</td>
-              <td className="py-3 numbers">
+              <td className="truncate px-3 py-3 font-display text-xl text-text">{player.nickname}</td>
+              {showTeam && <td className="px-3 py-3 text-muted">{player.teamTag}</td>}
+              <td className="px-3 py-3 text-right numbers">
                 {player.kills}/{player.deaths}/{player.assists}
               </td>
-              <td className="py-3 numbers" style={{ color: getRatingColor(player.rating) }}>
+              <td className="px-3 py-3 text-right numbers" style={{ color: getRatingColor(player.rating) }}>
                 {player.rating}
               </td>
-              <td className="py-3 numbers">{player.adr}</td>
-              <td className="py-3 numbers">{player.kastPercent}</td>
-              <td className="py-3 numbers">{player.hsPercent}</td>
-              <td className="py-3 numbers">
+              <td className="px-3 py-3 text-right numbers">{player.adr}</td>
+              <td className="px-3 py-3 text-right numbers">{player.kastPercent}%</td>
+              <td className="px-3 py-3 text-right numbers">{player.hsPercent}%</td>
+              <td className="px-3 py-3 text-right numbers">
                 {player.clutchesWon}/{player.clutchAttempts}
               </td>
-              <td className="py-3 numbers">{player.openingKills}</td>
-              <td className="py-3 numbers">{player.bestRoundKills}</td>
+              <td className="px-3 py-3 text-right numbers">{player.openingKills}</td>
+              <td className="px-3 py-3 text-right numbers">{player.bestRoundKills}</td>
             </tr>
           ))}
         </tbody>
