@@ -228,6 +228,153 @@ const COPY_RU = {
   open_team_manager_short: "Менеджер команд",
 };
 
+const RADAR_ASSETS = {
+  Mirage: { upper: "/radars/mirage.webp" },
+  Inferno: { upper: "/radars/inferno.webp" },
+  Nuke: { upper: "/radars/nuke-upper.webp", lower: "/radars/nuke-lower.webp" },
+  Overpass: { upper: "/radars/overpass.webp" },
+  Dust: { upper: "/radars/dust2.webp" },
+  Ancient: { upper: "/radars/ancient.webp" },
+  Anubis: { upper: "/radars/anubis.webp" },
+};
+
+const RADAR_SITE_FALLBACKS = {
+  Mirage: {
+    A: { x: 0.77, y: 0.22, level: "upper" },
+    B: { x: 0.22, y: 0.25, level: "upper" },
+    Mid: { x: 0.48, y: 0.48, level: "upper" },
+  },
+  Inferno: {
+    A: { x: 0.69, y: 0.36, level: "upper" },
+    B: { x: 0.27, y: 0.18, level: "upper" },
+    Mid: { x: 0.5, y: 0.57, level: "upper" },
+  },
+  Nuke: {
+    A: { x: 0.57, y: 0.44, level: "upper" },
+    B: { x: 0.58, y: 0.54, level: "lower" },
+    Mid: { x: 0.49, y: 0.52, level: "upper" },
+  },
+  Overpass: {
+    A: { x: 0.78, y: 0.24, level: "upper" },
+    B: { x: 0.24, y: 0.64, level: "upper" },
+    Mid: { x: 0.52, y: 0.35, level: "upper" },
+  },
+  Dust: {
+    A: { x: 0.73, y: 0.2, level: "upper" },
+    B: { x: 0.18, y: 0.28, level: "upper" },
+    Mid: { x: 0.49, y: 0.4, level: "upper" },
+  },
+  Ancient: {
+    A: { x: 0.72, y: 0.18, level: "upper" },
+    B: { x: 0.23, y: 0.28, level: "upper" },
+    Mid: { x: 0.5, y: 0.54, level: "upper" },
+  },
+  Anubis: {
+    A: { x: 0.17, y: 0.61, level: "upper" },
+    B: { x: 0.71, y: 0.18, level: "upper" },
+    Mid: { x: 0.49, y: 0.5, level: "upper" },
+  },
+};
+
+const RADAR_ZONE_POSITIONS = {
+  Mirage: {
+    "A ramp": { x: 0.74, y: 0.19, level: "upper" },
+    palace: { x: 0.84, y: 0.18, level: "upper" },
+    ticket: { x: 0.81, y: 0.31, level: "upper" },
+    jungle: { x: 0.72, y: 0.32, level: "upper" },
+    apartments: { x: 0.18, y: 0.18, level: "upper" },
+    bench: { x: 0.19, y: 0.31, level: "upper" },
+    market: { x: 0.28, y: 0.29, level: "upper" },
+    van: { x: 0.23, y: 0.36, level: "upper" },
+    "top mid": { x: 0.44, y: 0.55, level: "upper" },
+    window: { x: 0.5, y: 0.45, level: "upper" },
+    connector: { x: 0.61, y: 0.47, level: "upper" },
+    catwalk: { x: 0.34, y: 0.43, level: "upper" },
+  },
+  Inferno: {
+    short: { x: 0.63, y: 0.35, level: "upper" },
+    library: { x: 0.74, y: 0.29, level: "upper" },
+    pit: { x: 0.77, y: 0.4, level: "upper" },
+    "site::A": { x: 0.69, y: 0.36, level: "upper" },
+    banana: { x: 0.42, y: 0.14, level: "upper" },
+    coffins: { x: 0.29, y: 0.12, level: "upper" },
+    "new box": { x: 0.24, y: 0.17, level: "upper" },
+    dark: { x: 0.19, y: 0.23, level: "upper" },
+    mid: { x: 0.49, y: 0.57, level: "upper" },
+    arch: { x: 0.62, y: 0.52, level: "upper" },
+    boiler: { x: 0.53, y: 0.65, level: "upper" },
+    lane: { x: 0.42, y: 0.64, level: "upper" },
+  },
+  Nuke: {
+    outside: { x: 0.24, y: 0.47, level: "upper" },
+    mini: { x: 0.44, y: 0.38, level: "upper" },
+    hut: { x: 0.56, y: 0.47, level: "upper" },
+    heaven: { x: 0.61, y: 0.37, level: "upper" },
+    ramp: { x: 0.21, y: 0.5, level: "lower" },
+    decon: { x: 0.69, y: 0.55, level: "lower" },
+    "double doors": { x: 0.78, y: 0.52, level: "lower" },
+    "site::B": { x: 0.57, y: 0.53, level: "lower" },
+    garage: { x: 0.28, y: 0.41, level: "upper" },
+    secret: { x: 0.39, y: 0.63, level: "lower" },
+    lobby: { x: 0.69, y: 0.58, level: "upper" },
+  },
+  Overpass: {
+    long: { x: 0.75, y: 0.22, level: "upper" },
+    bathrooms: { x: 0.63, y: 0.23, level: "upper" },
+    truck: { x: 0.82, y: 0.31, level: "upper" },
+    "site::A": { x: 0.78, y: 0.24, level: "upper" },
+    monster: { x: 0.18, y: 0.74, level: "upper" },
+    "short::B": { x: 0.37, y: 0.67, level: "upper" },
+    pillar: { x: 0.27, y: 0.64, level: "upper" },
+    "site::B": { x: 0.24, y: 0.59, level: "upper" },
+    connector: { x: 0.46, y: 0.46, level: "upper" },
+    fountain: { x: 0.54, y: 0.26, level: "upper" },
+    party: { x: 0.66, y: 0.13, level: "upper" },
+    "short::Mid": { x: 0.4, y: 0.54, level: "upper" },
+  },
+  Dust: {
+    long: { x: 0.18, y: 0.56, level: "upper" },
+    catwalk: { x: 0.58, y: 0.24, level: "upper" },
+    "A site": { x: 0.74, y: 0.2, level: "upper" },
+    "short::A": { x: 0.66, y: 0.28, level: "upper" },
+    tunnels: { x: 0.22, y: 0.19, level: "upper" },
+    window: { x: 0.3, y: 0.3, level: "upper" },
+    "B site": { x: 0.17, y: 0.28, level: "upper" },
+    door: { x: 0.24, y: 0.37, level: "upper" },
+    mid: { x: 0.48, y: 0.42, level: "upper" },
+    xbox: { x: 0.56, y: 0.38, level: "upper" },
+    "lower tunnels": { x: 0.34, y: 0.5, level: "upper" },
+    "top mid": { x: 0.47, y: 0.31, level: "upper" },
+  },
+  Ancient: {
+    "A main": { x: 0.3, y: 0.72, level: "upper" },
+    donut: { x: 0.58, y: 0.45, level: "upper" },
+    temple: { x: 0.68, y: 0.3, level: "upper" },
+    "site::A": { x: 0.72, y: 0.18, level: "upper" },
+    cave: { x: 0.28, y: 0.18, level: "upper" },
+    lane: { x: 0.38, y: 0.27, level: "upper" },
+    "back site": { x: 0.22, y: 0.31, level: "upper" },
+    ramp: { x: 0.47, y: 0.22, level: "upper" },
+    mid: { x: 0.52, y: 0.53, level: "upper" },
+    "red room": { x: 0.45, y: 0.63, level: "upper" },
+    boost: { x: 0.41, y: 0.48, level: "upper" },
+  },
+  Anubis: {
+    "A main": { x: 0.31, y: 0.73, level: "upper" },
+    heaven: { x: 0.22, y: 0.61, level: "upper" },
+    "bridge::A": { x: 0.23, y: 0.48, level: "upper" },
+    "site::A": { x: 0.14, y: 0.62, level: "upper" },
+    canal: { x: 0.83, y: 0.25, level: "upper" },
+    pillar: { x: 0.73, y: 0.23, level: "upper" },
+    "site::B": { x: 0.69, y: 0.15, level: "upper" },
+    "bridge::B": { x: 0.61, y: 0.22, level: "upper" },
+    mid: { x: 0.5, y: 0.5, level: "upper" },
+    connector: { x: 0.45, y: 0.37, level: "upper" },
+    water: { x: 0.55, y: 0.46, level: "upper" },
+    "top mid": { x: 0.5, y: 0.62, level: "upper" },
+  },
+};
+
 function useI18n() {
   const context = useContext(LanguageContext);
   if (!context) {
@@ -759,7 +906,7 @@ function App() {
       playbackTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
       playbackTimersRef.current = [];
     };
-  }, [state.currentMatch?.id, state.currentMatch?.status, state.currentMatch?.speed, livePresentationMode]);
+  }, [state.currentMatch, livePresentationMode]);
 
   const selectedTeam = state.teams.find((team) => team.id === state.selectedTeamId) ?? null;
   const filteredHistory = historyFilter
@@ -1069,6 +1216,45 @@ function renderLogo(logo, fallback = "T") {
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
+}
+
+function resolveRadarPosition(mapName, zone, site) {
+  const mapZones = RADAR_ZONE_POSITIONS[mapName] ?? {};
+  if (zone) {
+    const siteKey = site ? `${zone}::${site}` : null;
+    if (siteKey && mapZones[siteKey]) {
+      return mapZones[siteKey];
+    }
+    if (mapZones[zone]) {
+      return mapZones[zone];
+    }
+  }
+
+  return RADAR_SITE_FALLBACKS[mapName]?.[site] ?? { x: 0.5, y: 0.5, level: "upper" };
+}
+
+function buildRadarMarkers(events = [], mapName) {
+  const kills = events
+    .filter((event) => event.kind === "kill")
+    .map((event, index, source) => {
+      const position = resolveRadarPosition(mapName, event.zone, event.site);
+      return {
+        id: `${event.id}_${index}`,
+        x: position.x,
+        y: position.y,
+        level: position.level ?? "upper",
+        zone: event.zone,
+        site: event.site,
+        victimTeamKey: event.victimTeamKey,
+        victimSide: event.victimSide,
+        clock: event.clock,
+        label: event.label,
+        openingKill: event.openingKill,
+        recent: index === source.length - 1,
+      };
+    });
+
+  return kills;
 }
 
 function formatRoundClock(totalSeconds) {
@@ -2461,6 +2647,11 @@ function LiveMatchView({
     ...entry,
     label: entry.label,
   }));
+  const roundTimelineEvents = playbackSummary
+    ? (playbackSummary.timeline ?? []).slice(0, Math.max(0, roundPlayback.frameIndex + 1))
+    : latestRound?.timeline ?? [];
+  const radarMarkers = buildRadarMarkers(roundTimelineEvents, activeMap.mapName);
+  const latestRadarMarker = radarMarkers[radarMarkers.length - 1] ?? null;
   const feedEntries = playbackSummary
     ? (playbackSummary.timeline ?? [])
         .slice(0, Math.max(0, roundPlayback.frameIndex + 1))
@@ -2512,6 +2703,8 @@ function LiveMatchView({
         mobileSite={mobileSite}
         siteMode={siteMode}
         onSiteModeChange={onSiteModeChange}
+        radarMarkers={radarMarkers}
+        latestRadarMarker={latestRadarMarker}
       />
     );
   }
@@ -2561,7 +2754,7 @@ function LiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_176px] gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_220px] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -2708,27 +2901,37 @@ function LiveMatchView({
               </div>
             </Panel>
           </div>
-          <Panel title={t("economy_graph")} subtitle="Equipment value by round." className="overflow-hidden p-3">
-            <div className="h-full min-h-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={economyData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="label" stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
-                  <YAxis stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#111318",
-                      border: "1px solid #2a2d36",
-                      borderRadius: 16,
-                      color: "#e8eaf0",
-                    }}
-                  />
-                  <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Panel>
+          <div className="grid min-h-0 grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-3 overflow-hidden">
+            <Panel title="Radar" subtitle="Death markers stay on the map for the whole round." className="overflow-hidden p-3">
+              <RadarPanel
+                mapName={activeMap.mapName}
+                markers={radarMarkers}
+                latestMarker={latestRadarMarker}
+                sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+              />
+            </Panel>
+            <Panel title={t("economy_graph")} subtitle="Equipment value by round." className="overflow-hidden p-3">
+              <div className="h-full min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={economyData}>
+                    <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="label" stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
+                    <YAxis stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{
+                        background: "#111318",
+                        border: "1px solid #2a2d36",
+                        borderRadius: 16,
+                        color: "#e8eaf0",
+                      }}
+                    />
+                    <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.5} dot={false} />
+                    <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.5} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Panel>
+          </div>
         </div>
       </div>
       <BroadcastTeamColumn
@@ -2860,6 +3063,8 @@ function PhoneLandscapeLiveMatchView({
   mobileSite = false,
   siteMode = "desktop",
   onSiteModeChange,
+  radarMarkers = [],
+  latestRadarMarker = null,
 }) {
   const { t } = useI18n();
   const isLandscape = useIsLandscape(mobileSite);
@@ -2896,6 +3101,8 @@ function PhoneLandscapeLiveMatchView({
         playbackStepLabel={playbackStepLabel}
         siteMode={siteMode}
         onSiteModeChange={onSiteModeChange}
+        radarMarkers={radarMarkers}
+        latestRadarMarker={latestRadarMarker}
       />
     );
   }
@@ -3131,10 +3338,13 @@ function MobileLiveMatchView({
   playbackStepLabel = null,
   siteMode = "mobile",
   onSiteModeChange,
+  radarMarkers = [],
+  latestRadarMarker = null,
 }) {
   const tabs = [
     { id: "round", label: "Round" },
     { id: "feed", label: "Feed" },
+    { id: "map", label: "Map" },
     { id: "econ", label: "Economy" },
   ];
 
@@ -3171,7 +3381,7 @@ function MobileLiveMatchView({
           </div>
         </div>
         <div className="panel rounded-2xl p-1">
-          <div className="grid h-full grid-cols-3 gap-1">
+          <div className="grid h-full grid-cols-4 gap-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -3190,6 +3400,14 @@ function MobileLiveMatchView({
         <div className="panel min-h-0 overflow-hidden rounded-2xl p-2">
           {mobilePane === "feed" ? (
             <MobileFeedPanel logs={feedEntries.length ? feedEntries : activeMap.allLogs} limit={7} />
+          ) : mobilePane === "map" ? (
+            <RadarPanel
+              mapName={activeMap.mapName}
+              markers={radarMarkers}
+              latestMarker={latestRadarMarker}
+              sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+              compact
+            />
           ) : mobilePane === "econ" ? (
             <MobileEconomyPanel economyData={economyData} latestRound={latestRound} teamA={match.teamA} teamB={match.teamB} timeoutsRemaining={match.timeoutsRemaining} />
           ) : (
@@ -3534,6 +3752,128 @@ function LeaderCard({ title, nickname, rating, side }) {
       <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Top Rating {title}</div>
       <div className="mt-1 font-display text-2xl text-text">{nickname}</div>
       <div className={classNames("numbers text-lg", tone.text)}>{rating}</div>
+    </div>
+  );
+}
+
+function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = false }) {
+  const assets = RADAR_ASSETS[mapName];
+  const upperMarkers = markers.filter((marker) => marker.level !== "lower");
+  const lowerMarkers = markers.filter((marker) => marker.level === "lower");
+
+  if (!assets?.upper) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-border px-4 text-center text-sm text-muted">
+        Radar asset is missing for {mapName}.
+      </div>
+    );
+  }
+
+  return (
+    <div className={classNames("grid h-full min-h-0 gap-3", compact ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_188px]")}>
+      <div className="relative min-h-0 overflow-hidden rounded-2xl border border-border bg-[#050608]">
+        <img src={assets.upper} alt={`${mapName} radar`} className="h-full w-full object-contain" draggable="false" />
+        {upperMarkers.map((marker) => (
+          <RadarDeathMarker
+            key={marker.id}
+            marker={marker}
+            victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
+            compact={compact}
+          />
+        ))}
+        <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
+          Upper
+        </div>
+        {assets.lower && (
+          <div className="absolute bottom-3 right-3 h-[42%] w-[42%] overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl">
+            <img src={assets.lower} alt={`${mapName} lower radar`} className="h-full w-full object-contain" draggable="false" />
+            {lowerMarkers.map((marker) => (
+              <RadarDeathMarker
+                key={marker.id}
+                marker={marker}
+                victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
+                compact
+              />
+            ))}
+            <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-border bg-surface/80 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-muted">
+              Lower
+            </div>
+          </div>
+        )}
+      </div>
+      {!compact && (
+      <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+        <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Last Frag</div>
+          <div className="mt-1 font-display text-2xl text-text">{latestMarker?.clock ?? "Waiting"}</div>
+          <div className="mt-2 text-sm leading-5 text-muted">
+            {latestMarker?.label ?? "Kill markers appear here through the round playback."}
+          </div>
+        </div>
+        <div className="min-h-0 rounded-2xl border border-border bg-card/60 p-3">
+          <div className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted">
+            <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-accent">T Frag</span>
+            <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-sky-300">CT Frag</span>
+          </div>
+          <div className="scrollbar-thin h-full space-y-2 overflow-y-auto pr-1">
+            {markers.length ? (
+              [...markers].reverse().map((marker) => (
+                <div key={`${marker.id}_line`} className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="numbers text-xs text-accent">{marker.clock}</div>
+                    <div
+                      className={classNames(
+                        "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]",
+                        marker.victimSide === "CT" ? "bg-sky-500/10 text-sky-300" : "bg-accent/10 text-accent"
+                      )}
+                    >
+                      {marker.victimSide === "CT" ? "CT down" : "T down"}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-sm text-text">{marker.zone ?? marker.site ?? "unknown"}</div>
+                </div>
+              ))
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted">
+                No deaths yet on this round.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      )}
+    </div>
+  );
+}
+
+function RadarDeathMarker({ marker, victimSide, compact = false }) {
+  const victimTone =
+    victimSide === "CT"
+      ? "text-sky-300 drop-shadow-[0_0_10px_rgba(91,141,217,0.75)]"
+      : "text-accent drop-shadow-[0_0_10px_rgba(245,166,35,0.75)]";
+
+  return (
+    <div
+      className="pointer-events-none absolute"
+      style={{
+        left: `${marker.x * 100}%`,
+        top: `${marker.y * 100}%`,
+        transform: "translate(-50%, -50%)",
+      }}
+      title={marker.label}
+    >
+      <div
+        className={classNames(
+          "rounded-full border border-white/10 bg-black/45 backdrop-blur-sm",
+          marker.recent ? "scale-110" : "opacity-80"
+        )}
+      >
+        <X
+          size={compact ? 15 : marker.recent ? 20 : 17}
+          strokeWidth={compact ? 2.7 : 3.1}
+          className={victimTone}
+        />
+      </div>
     </div>
   );
 }

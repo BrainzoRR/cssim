@@ -2113,6 +2113,7 @@ function maybeUtilityDamage({
       : "incendiary";
   consumeUtility(thrower, grenadeType);
   const target = pickCombatant(defendingTeam, "site", "close");
+  const utilityZone = pickZone(mapName, site);
   const damage = Math.round(rand(18, 44) * (thrower.utility / 90));
   target.hp = clamp(target.hp - damage, 0, 100);
   thrower.stats.damage += damage;
@@ -2120,10 +2121,7 @@ function maybeUtilityDamage({
   elapsedLog(
     logs,
     elapsed,
-    `${thrower.nickname} softens up ${target.nickname} with ${grenadeType} utility at ${pickZone(
-      mapName,
-      site
-    )} for ${damage} damage`,
+    `${thrower.nickname} softens up ${target.nickname} with ${grenadeType} utility at ${utilityZone} for ${damage} damage`,
     "utility",
     {
       timeline,
@@ -2131,6 +2129,8 @@ function maybeUtilityDamage({
       meta: {
         actorId: thrower.id,
         victimId: target.id,
+        zone: utilityZone,
+        site,
       },
     }
   );
@@ -2161,7 +2161,7 @@ function maybeUtilityDamage({
     elapsedLog(
       logs,
       elapsed + 2,
-      `${thrower.nickname} finishes ${target.nickname} with utility at ${pickZone(mapName, site)}`,
+      `${thrower.nickname} finishes ${target.nickname} with utility at ${utilityZone}`,
       "kill",
       {
         timeline,
@@ -2173,6 +2173,9 @@ function maybeUtilityDamage({
           victimTeamKey: defendingTeamKey,
           openingKill: roundFlags[thrower.id].openingKill,
           viaUtility: true,
+          victimSide: defendingTeam.side,
+          zone: utilityZone,
+          site,
         },
       }
     );
@@ -2397,9 +2400,12 @@ function resolveDuelEvent({
         victimId: loser.id,
         killerTeamKey: winnerTeamKey,
         victimTeamKey: loserTeamKey,
+        victimSide: loserTeam.side,
         openingKill: roundFlags[winner.id].openingKill,
         headshot,
         traded,
+        zone,
+        site,
       },
     }
   );
@@ -2495,13 +2501,12 @@ function maybeLurkKill({
     roundFlags[lurker.id].openingKill = true;
   }
 
+  const zone = pickZone(mapName, "Mid");
+
   elapsedLog(
     logs,
     elapsed,
-    `${lurker.nickname} slips through the timing and catches ${target.nickname} lurking at ${pickZone(
-      mapName,
-      "Mid"
-    )}`,
+    `${lurker.nickname} slips through the timing and catches ${target.nickname} lurking at ${zone}`,
     "kill",
     {
       timeline,
@@ -2511,8 +2516,11 @@ function maybeLurkKill({
         victimId: target.id,
         killerTeamKey: teamKey,
         victimTeamKey: enemyKey,
+        victimSide: teamStates[enemyKey].side,
         openingKill: roundFlags[lurker.id].openingKill,
         lurkKill: true,
+        zone,
+        site: "Mid",
       },
     }
   );
