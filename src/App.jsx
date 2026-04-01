@@ -240,9 +240,9 @@ const RADAR_ASSETS = {
 
 const RADAR_SITE_FALLBACKS = {
   Mirage: {
-    A: { x: 0.74, y: 0.43, level: "upper" },
-    B: { x: 0.23, y: 0.69, level: "upper" },
-    Mid: { x: 0.54, y: 0.58, level: "upper" },
+    A: { x: 0.77, y: 0.42, level: "upper" },
+    B: { x: 0.2, y: 0.59, level: "upper" },
+    Mid: { x: 0.52, y: 0.6, level: "upper" },
   },
   Inferno: {
     A: { x: 0.69, y: 0.36, level: "upper" },
@@ -278,18 +278,18 @@ const RADAR_SITE_FALLBACKS = {
 
 const RADAR_ZONE_POSITIONS = {
   Mirage: {
-    "A ramp": { x: 0.72, y: 0.8, level: "upper" },
-    palace: { x: 0.73, y: 0.16, level: "upper" },
-    ticket: { x: 0.68, y: 0.39, level: "upper" },
-    jungle: { x: 0.63, y: 0.54, level: "upper" },
-    apartments: { x: 0.15, y: 0.18, level: "upper" },
-    bench: { x: 0.24, y: 0.68, level: "upper" },
-    market: { x: 0.28, y: 0.57, level: "upper" },
-    van: { x: 0.19, y: 0.61, level: "upper" },
-    "top mid": { x: 0.55, y: 0.67, level: "upper" },
-    window: { x: 0.55, y: 0.51, level: "upper" },
-    connector: { x: 0.64, y: 0.62, level: "upper" },
-    catwalk: { x: 0.37, y: 0.52, level: "upper" },
+    "A ramp": { x: 0.63, y: 0.86, level: "upper" },
+    palace: { x: 0.67, y: 0.18, level: "upper" },
+    ticket: { x: 0.84, y: 0.43, level: "upper" },
+    jungle: { x: 0.71, y: 0.52, level: "upper" },
+    apartments: { x: 0.17, y: 0.18, level: "upper" },
+    bench: { x: 0.21, y: 0.67, level: "upper" },
+    market: { x: 0.3, y: 0.57, level: "upper" },
+    van: { x: 0.15, y: 0.58, level: "upper" },
+    "top mid": { x: 0.52, y: 0.68, level: "upper" },
+    window: { x: 0.53, y: 0.53, level: "upper" },
+    connector: { x: 0.63, y: 0.66, level: "upper" },
+    catwalk: { x: 0.39, y: 0.52, level: "upper" },
   },
   Inferno: {
     short: { x: 0.63, y: 0.35, level: "upper" },
@@ -374,8 +374,6 @@ const RADAR_ZONE_POSITIONS = {
     "top mid": { x: 0.5, y: 0.62, level: "upper" },
   },
 };
-
-const RADAR_BOUNDS_CACHE = new Map();
 
 function useI18n() {
   const context = useContext(LanguageContext);
@@ -1301,99 +1299,6 @@ function useIsLandscape(enabled = true) {
   }, [enabled]);
 
   return isLandscape;
-}
-
-function useRadarBounds(src) {
-  const [bounds, setBounds] = useState(() =>
-    RADAR_BOUNDS_CACHE.get(src) ?? { left: 0, top: 0, width: 1, height: 1, ready: false }
-  );
-
-  useEffect(() => {
-    if (!src || typeof window === "undefined") {
-      return undefined;
-    }
-
-    if (RADAR_BOUNDS_CACHE.has(src)) {
-      setBounds(RADAR_BOUNDS_CACHE.get(src));
-      return undefined;
-    }
-
-    let cancelled = false;
-    const image = new window.Image();
-    image.decoding = "async";
-
-    image.onload = () => {
-      if (cancelled) {
-        return;
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = image.naturalWidth || image.width;
-      canvas.height = image.naturalHeight || image.height;
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-
-      if (!context || !canvas.width || !canvas.height) {
-        const fallback = { left: 0, top: 0, width: 1, height: 1, ready: true };
-        RADAR_BOUNDS_CACHE.set(src, fallback);
-        setBounds(fallback);
-        return;
-      }
-
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-      let left = canvas.width;
-      let right = 0;
-      let top = canvas.height;
-      let bottom = 0;
-      let found = false;
-
-      for (let y = 0; y < canvas.height; y += 1) {
-        for (let x = 0; x < canvas.width; x += 1) {
-          const index = (y * canvas.width + x) * 4;
-          const alpha = data[index + 3];
-          const brightness = data[index] + data[index + 1] + data[index + 2];
-
-          if (alpha > 8 && brightness > 28) {
-            found = true;
-            left = Math.min(left, x);
-            right = Math.max(right, x);
-            top = Math.min(top, y);
-            bottom = Math.max(bottom, y);
-          }
-        }
-      }
-
-      const nextBounds = found
-        ? {
-            left: left / canvas.width,
-            top: top / canvas.height,
-            width: (right - left + 1) / canvas.width,
-            height: (bottom - top + 1) / canvas.height,
-            ready: true,
-          }
-        : { left: 0, top: 0, width: 1, height: 1, ready: true };
-
-      RADAR_BOUNDS_CACHE.set(src, nextBounds);
-      setBounds(nextBounds);
-    };
-
-    image.onerror = () => {
-      if (cancelled) {
-        return;
-      }
-      const fallback = { left: 0, top: 0, width: 1, height: 1, ready: true };
-      RADAR_BOUNDS_CACHE.set(src, fallback);
-      setBounds(fallback);
-    };
-
-    image.src = src;
-
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  return bounds;
 }
 
 function Panel({ title, subtitle, action, children, className = "" }) {
@@ -2850,7 +2755,7 @@ function LiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_390px] gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_360px] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -2997,7 +2902,7 @@ function LiveMatchView({
               </div>
             </Panel>
           </div>
-          <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)] gap-3 overflow-hidden">
+          <div className="grid min-h-0 grid-cols-[420px_minmax(0,1fr)] gap-3 overflow-hidden">
             <Panel title="Radar" subtitle="Death markers stay on the map for the whole round." className="overflow-hidden p-3">
               <div className="mb-3 flex justify-end">
                 <button
@@ -3031,8 +2936,20 @@ function LiveMatchView({
                         color: "#e8eaf0",
                       }}
                     />
-                    <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.5} dot={false} />
-                    <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.5} dot={false} />
+                    <Line
+                      type="monotone"
+                      dataKey="teamA"
+                      stroke="#f5a623"
+                      strokeWidth={2.5}
+                      dot={economyData.length <= 2 ? { r: 4, fill: "#f5a623", strokeWidth: 0 } : false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="teamB"
+                      stroke="#5b8dd9"
+                      strokeWidth={2.5}
+                      dot={economyData.length <= 2 ? { r: 4, fill: "#5b8dd9", strokeWidth: 0 } : false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -3648,8 +3565,20 @@ function MobileEconomyPanel({ economyData, latestRound, teamA, teamB, timeoutsRe
                 color: "#e8eaf0",
               }}
             />
-            <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.2} dot={false} />
-            <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.2} dot={false} />
+            <Line
+              type="monotone"
+              dataKey="teamA"
+              stroke="#f5a623"
+              strokeWidth={2.2}
+              dot={economyData.length <= 2 ? { r: 3, fill: "#f5a623", strokeWidth: 0 } : false}
+            />
+            <Line
+              type="monotone"
+              dataKey="teamB"
+              stroke="#5b8dd9"
+              strokeWidth={2.2}
+              dot={economyData.length <= 2 ? { r: 3, fill: "#5b8dd9", strokeWidth: 0 } : false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -3883,8 +3812,6 @@ function RadarPanel({
   const assets = RADAR_ASSETS[mapName];
   const upperMarkers = markers.filter((marker) => marker.level !== "lower");
   const lowerMarkers = markers.filter((marker) => marker.level === "lower");
-  const upperBounds = useRadarBounds(assets?.upper);
-  const lowerBounds = useRadarBounds(assets?.lower);
 
   if (!assets?.upper) {
     return (
@@ -3904,14 +3831,13 @@ function RadarPanel({
       <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#050608] p-3">
         <div className={classNames("relative aspect-square h-full max-w-full", expanded ? "max-h-[78vh]" : "")}>
           <img src={assets.upper} alt={`${mapName} radar`} className="absolute inset-0 h-full w-full object-contain" draggable="false" />
-          {upperBounds.ready && upperMarkers.map((marker) => (
+          {upperMarkers.map((marker) => (
             <RadarDeathMarker
               key={marker.id}
               marker={marker}
               victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
               compact={compact}
               expanded={expanded}
-              bounds={upperBounds}
             />
           ))}
           <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
@@ -3920,14 +3846,13 @@ function RadarPanel({
           {assets.lower && (
             <div className={classNames("absolute overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl", expanded ? "bottom-4 right-4 h-[38%] w-[38%]" : "bottom-3 right-3 h-[42%] w-[42%]")}>
               <img src={assets.lower} alt={`${mapName} lower radar`} className="absolute inset-0 h-full w-full object-contain" draggable="false" />
-              {lowerBounds.ready && lowerMarkers.map((marker) => (
+              {lowerMarkers.map((marker) => (
                 <RadarDeathMarker
                   key={marker.id}
                   marker={marker}
                   victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
                   compact
                   expanded={expanded}
-                  bounds={lowerBounds}
                 />
               ))}
               <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-border bg-surface/80 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-muted">
@@ -3993,21 +3918,18 @@ function RadarPanel({
   );
 }
 
-function RadarDeathMarker({ marker, victimSide, compact = false, expanded = false, bounds }) {
+function RadarDeathMarker({ marker, victimSide, compact = false, expanded = false }) {
   const victimTone =
     victimSide === "CT"
       ? "text-sky-300 drop-shadow-[0_0_10px_rgba(91,141,217,0.75)]"
       : "text-accent drop-shadow-[0_0_10px_rgba(245,166,35,0.75)]";
-  const resolvedBounds = bounds?.ready ? bounds : { left: 0, top: 0, width: 1, height: 1 };
-  const left = (resolvedBounds.left + clamp(marker.x, 0, 1) * resolvedBounds.width) * 100;
-  const top = (resolvedBounds.top + clamp(marker.y, 0, 1) * resolvedBounds.height) * 100;
 
   return (
     <div
       className="pointer-events-none absolute"
       style={{
-        left: `${clamp(left / 100, 0.02, 0.98) * 100}%`,
-        top: `${clamp(top / 100, 0.02, 0.98) * 100}%`,
+        left: `${clamp(marker.x, 0.03, 0.97) * 100}%`,
+        top: `${clamp(marker.y, 0.03, 0.97) * 100}%`,
         transform: "translate(-50%, -50%)",
       }}
       title={marker.label}
