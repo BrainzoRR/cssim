@@ -2625,6 +2625,7 @@ function LiveMatchView({
   onSiteModeChange,
 }) {
   const { t } = useI18n();
+  const [radarExpanded, setRadarExpanded] = useState(false);
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
   const playbackSummary = roundPlayback?.summary ?? null;
   const playbackTotalFrames = roundPlayback?.totalFrames ?? playbackSummary?.timeline?.length ?? 0;
@@ -2754,7 +2755,7 @@ function LiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_220px] gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_270px] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -2903,6 +2904,15 @@ function LiveMatchView({
           </div>
           <div className="grid min-h-0 grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-3 overflow-hidden">
             <Panel title="Radar" subtitle="Death markers stay on the map for the whole round." className="overflow-hidden p-3">
+              <div className="mb-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setRadarExpanded(true)}
+                  className="rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-accent transition hover:border-accent hover:bg-accent/15"
+                >
+                  Open Radar
+                </button>
+              </div>
               <RadarPanel
                 mapName={activeMap.mapName}
                 markers={radarMarkers}
@@ -2943,6 +2953,15 @@ function LiveMatchView({
         timeoutsRemaining={match.timeoutsRemaining.teamB}
         reverse
       />
+      {radarExpanded && (
+        <RadarExpandedModal
+          mapName={activeMap.mapName}
+          markers={radarMarkers}
+          latestMarker={latestRadarMarker}
+          sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+          onClose={() => setRadarExpanded(false)}
+        />
+      )}
     </div>
   );
 }
@@ -3756,7 +3775,7 @@ function LeaderCard({ title, nickname, rating, side }) {
   );
 }
 
-function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = false }) {
+function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = false, expanded = false }) {
   const assets = RADAR_ASSETS[mapName];
   const upperMarkers = markers.filter((marker) => marker.level !== "lower");
   const lowerMarkers = markers.filter((marker) => marker.level === "lower");
@@ -3770,36 +3789,40 @@ function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = fals
   }
 
   return (
-    <div className={classNames("grid h-full min-h-0 gap-3", compact ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_188px]")}>
-      <div className="relative min-h-0 overflow-hidden rounded-2xl border border-border bg-[#050608]">
-        <img src={assets.upper} alt={`${mapName} radar`} className="h-full w-full object-contain" draggable="false" />
-        {upperMarkers.map((marker) => (
-          <RadarDeathMarker
-            key={marker.id}
-            marker={marker}
-            victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
-            compact={compact}
-          />
-        ))}
-        <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
-          Upper
-        </div>
-        {assets.lower && (
-          <div className="absolute bottom-3 right-3 h-[42%] w-[42%] overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl">
-            <img src={assets.lower} alt={`${mapName} lower radar`} className="h-full w-full object-contain" draggable="false" />
-            {lowerMarkers.map((marker) => (
-              <RadarDeathMarker
-                key={marker.id}
-                marker={marker}
-                victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
-                compact
-              />
-            ))}
-            <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-border bg-surface/80 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-muted">
-              Lower
-            </div>
+    <div className={classNames("grid h-full min-h-0 gap-3", compact ? "grid-cols-1" : expanded ? "grid-cols-[minmax(0,1fr)_260px]" : "grid-cols-[minmax(0,1fr)_176px]")}>
+      <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#050608] p-3">
+        <div className={classNames("relative aspect-square w-full", expanded ? "max-h-[78vh]" : "h-full")}>
+          <img src={assets.upper} alt={`${mapName} radar`} className="absolute inset-0 h-full w-full object-fill" draggable="false" />
+          {upperMarkers.map((marker) => (
+            <RadarDeathMarker
+              key={marker.id}
+              marker={marker}
+              victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
+              compact={compact}
+              expanded={expanded}
+            />
+          ))}
+          <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
+            Upper
           </div>
-        )}
+          {assets.lower && (
+            <div className={classNames("absolute overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl", expanded ? "bottom-4 right-4 h-[38%] w-[38%]" : "bottom-3 right-3 h-[42%] w-[42%]")}>
+              <img src={assets.lower} alt={`${mapName} lower radar`} className="absolute inset-0 h-full w-full object-fill" draggable="false" />
+              {lowerMarkers.map((marker) => (
+                <RadarDeathMarker
+                  key={marker.id}
+                  marker={marker}
+                  victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
+                  compact
+                  expanded={expanded}
+                />
+              ))}
+              <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-border bg-surface/80 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-muted">
+                Lower
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       {!compact && (
       <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
@@ -3846,7 +3869,7 @@ function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = fals
   );
 }
 
-function RadarDeathMarker({ marker, victimSide, compact = false }) {
+function RadarDeathMarker({ marker, victimSide, compact = false, expanded = false }) {
   const victimTone =
     victimSide === "CT"
       ? "text-sky-300 drop-shadow-[0_0_10px_rgba(91,141,217,0.75)]"
@@ -3856,8 +3879,8 @@ function RadarDeathMarker({ marker, victimSide, compact = false }) {
     <div
       className="pointer-events-none absolute"
       style={{
-        left: `${marker.x * 100}%`,
-        top: `${marker.y * 100}%`,
+        left: `${clamp(marker.x, 0.04, 0.96) * 100}%`,
+        top: `${clamp(marker.y, 0.04, 0.96) * 100}%`,
         transform: "translate(-50%, -50%)",
       }}
       title={marker.label}
@@ -3869,10 +3892,42 @@ function RadarDeathMarker({ marker, victimSide, compact = false }) {
         )}
       >
         <X
-          size={compact ? 15 : marker.recent ? 20 : 17}
-          strokeWidth={compact ? 2.7 : 3.1}
+          size={expanded ? (marker.recent ? 28 : 24) : compact ? 15 : marker.recent ? 20 : 17}
+          strokeWidth={expanded ? 3.4 : compact ? 2.7 : 3.1}
           className={victimTone}
         />
+      </div>
+    </div>
+  );
+}
+
+function RadarExpandedModal({ mapName, markers, latestMarker, sideLookup, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-md">
+      <div className="panel flex h-[88vh] w-[min(1360px,94vw)] flex-col rounded-3xl p-5">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.22em] text-accent">Expanded Radar</div>
+            <div className="font-display text-3xl text-text">{mapName}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-border bg-card/70 p-3 text-muted transition hover:border-accent/40 hover:text-text"
+            aria-label="Close radar"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1">
+          <RadarPanel
+            mapName={mapName}
+            markers={markers}
+            latestMarker={latestMarker}
+            sideLookup={sideLookup}
+            expanded
+          />
+        </div>
       </div>
     </div>
   );
