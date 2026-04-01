@@ -1998,14 +1998,23 @@ function chooseStrategy(mapName, tTeamState) {
   return weightedPick(weighted, (option) => option.weight);
 }
 
-function elapsedLog(logs, elapsed, label, kind = "event") {
-  logs.push({
+function elapsedLog(logs, elapsed, label, kind = "event", options = {}) {
+  const entry = {
     id: uid("log"),
     elapsed,
     clock: formatElapsed(elapsed),
     label,
     kind,
-  });
+  };
+  logs.push(entry);
+
+  if (options.timeline) {
+    options.timeline.push({
+      ...entry,
+      ...(options.meta ?? {}),
+      snapshot: options.snapshot ?? null,
+    });
+  }
 }
 
 function pickZone(mapName, site) {
@@ -2070,7 +2079,21 @@ function maybeFlashSupport(teamState) {
   return flasher;
 }
 
-function maybeUtilityDamage(attackingTeam, defendingTeam, logs, elapsed, mapName, site, roundFlags) {
+function maybeUtilityDamage({
+  attackingTeam,
+  defendingTeam,
+  attackingTeamKey,
+  defendingTeamKey,
+  teamStates,
+  logs,
+  timeline,
+  elapsed,
+  mapName,
+  site,
+  roundFlags,
+  firstKillTaken,
+  lastDeath,
+}) {
   const throwers = getAlivePlayers(attackingTeam).filter(
     (player) =>
       player.roundLoadout.utilityItems.includes("he") ||
@@ -2079,7 +2102,7 @@ function maybeUtilityDamage(attackingTeam, defendingTeam, logs, elapsed, mapName
   );
 
   if (!throwers.length || Math.random() > average(throwers.map((player) => player.utility)) / 120) {
-    return;
+    return { firstKillTaken, lastDeath };
   }
 
   const thrower = weightedPick(throwers, (player) => player.utility + player.gameSense);
@@ -2101,7 +2124,15 @@ function maybeUtilityDamage(attackingTeam, defendingTeam, logs, elapsed, mapName
       mapName,
       site
     )} for ${damage} damage`,
-    "utility"
+    "utility",
+    {
+      timeline,
+      snapshot: buildPlaybackSnapshot(teamStates),
+      meta: {
+        actorId: thrower.id,
+        victimId: target.id,
+      },
+    }
   );
 
   if (target.hp <= 0) {
@@ -2117,13 +2148,37 @@ function maybeUtilityDamage(attackingTeam, defendingTeam, logs, elapsed, mapName
     roundFlags[thrower.id].kills += 1;
     roundFlags[thrower.id].gotKill = true;
     roundFlags[target.id].died = true;
+    if (!firstKillTaken) {
+      thrower.stats.openingKills += 1;
+      roundFlags[thrower.id].openingKill = true;
+      firstKillTaken = true;
+    }
+    lastDeath = {
+      victimId: target.id,
+      killerId: thrower.id,
+      teamKey: defendingTeamKey,
+    };
     elapsedLog(
       logs,
       elapsed + 2,
       `${thrower.nickname} finishes ${target.nickname} with utility at ${pickZone(mapName, site)}`,
-      "kill"
+      "kill",
+      {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+        meta: {
+          killerId: thrower.id,
+          victimId: target.id,
+          killerTeamKey: attackingTeamKey,
+          victimTeamKey: defendingTeamKey,
+          openingKill: roundFlags[thrower.id].openingKill,
+          viaUtility: true,
+        },
+      }
     );
   }
+
+  return { firstKillTaken, lastDeath };
 }
 
 function consistencyRoll(player) {
@@ -2242,6 +2297,7 @@ function resolveDuelEvent({
   flashSupport,
   lastDeath,
   tacticalPenalty,
+  timeline,
 }) {
   const attackerTeam = teamStates[attackerTeamKey];
   const defenderTeam = teamStates[defenderTeamKey];
@@ -2332,7 +2388,20 @@ function resolveDuelEvent({
     logs,
     elapsed,
     `${prefix} with ${getWeapon(winner.roundLoadout.weaponId).label} at ${zone}${headshot ? " [HS]" : ""}`,
-    "kill"
+    "kill",
+    {
+      timeline,
+      snapshot: buildPlaybackSnapshot(teamStates),
+      meta: {
+        killerId: winner.id,
+        victimId: loser.id,
+        killerTeamKey: winnerTeamKey,
+        victimTeamKey: loserTeamKey,
+        openingKill: roundFlags[winner.id].openingKill,
+        headshot,
+        traded,
+      },
+    }
   );
 
   if (supportChip) {
@@ -2340,7 +2409,15 @@ function resolveDuelEvent({
       logs,
       elapsed + 1,
       `${supportChip.helper.nickname} tags ${winner.nickname} for ${supportChip.chipDamage} in the trade attempt`,
-      "damage"
+      "damage",
+      {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+        meta: {
+          actorId: supportChip.helper.id,
+          victimId: winner.id,
+        },
+      }
     );
   }
 
@@ -2350,7 +2427,11 @@ function resolveDuelEvent({
       logs,
       elapsed + 1,
       `${loser.nickname} falls early and ${loserTeam.team.tag} lose the mid-round call structure`,
-      "note"
+      "note",
+      {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+      }
     );
   }
 
@@ -2372,6 +2453,7 @@ function maybeLurkKill({
   teamStates,
   mapName,
   logs,
+  timeline,
   elapsed,
   roundFlags,
   firstKillTaken,
@@ -2420,7 +2502,19 @@ function maybeLurkKill({
       mapName,
       "Mid"
     )}`,
-    "kill"
+    "kill",
+    {
+      timeline,
+      snapshot: buildPlaybackSnapshot(teamStates),
+      meta: {
+        killerId: lurker.id,
+        victimId: target.id,
+        killerTeamKey: teamKey,
+        victimTeamKey: enemyKey,
+        openingKill: roundFlags[lurker.id].openingKill,
+        lurkKill: true,
+      },
+    }
   );
 
   return {
@@ -2472,6 +2566,13 @@ function buildPlayerPanel(player) {
     assists: player.stats.assists,
     rating: player.stats.rating,
     money: player.money,
+  };
+}
+
+function buildPlaybackSnapshot(teamStates) {
+  return {
+    teamA: teamStates.teamA.players.map(buildPlayerPanel),
+    teamB: teamStates.teamB.players.map(buildPlayerPanel),
   };
 }
 
@@ -2554,9 +2655,11 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
   };
 
   const roundFlags = createRoundFlags(teamStates.teamA, teamStates.teamB);
+  const startLoadouts = buildPlaybackSnapshot(teamStates);
   const tKey = teamStates.teamA.side === "T" ? "teamA" : "teamB";
   const ctKey = tKey === "teamA" ? "teamB" : "teamA";
   const logs = [];
+  const timeline = [];
   const tacticalPenalty = { teamA: 0, teamB: 0 };
   const clutchState = {
     teamA: null,
@@ -2582,7 +2685,11 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       logs,
       3,
       `TACTICAL TIMEOUT — ${timeoutTeam.team.coach.nickname} draws up the play`,
-      "timeout"
+      "timeout",
+      {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+      }
     );
   }
 
@@ -2590,7 +2697,11 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     logs,
     elapsed,
     `${teamStates[tKey].team.name} ${strategy.label} on ${mapName} — ${strategy.site === "Mid" ? "pressure through mid" : `hit toward ${strategy.site}`}`,
-    "strategy"
+    "strategy",
+    {
+      timeline,
+      snapshot: buildPlaybackSnapshot(teamStates),
+    }
   );
 
   const ctUtilityAverage = average(teamStates[ctKey].players.map((player) => player.utility));
@@ -2599,28 +2710,48 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       logs,
       elapsed + 2,
       `${teamStates[ctKey].team.tag} stack utility toward ${plantSite} and make the choke brutal`,
-      "utility"
+      "utility",
+      {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+      }
     );
   }
 
-  maybeUtilityDamage(
-    teamStates[tKey],
-    teamStates[ctKey],
+  const tUtilityResult = maybeUtilityDamage({
+    attackingTeam: teamStates[tKey],
+    defendingTeam: teamStates[ctKey],
+    attackingTeamKey: tKey,
+    defendingTeamKey: ctKey,
+    teamStates,
     logs,
-    elapsed + 3,
+    timeline,
+    elapsed: elapsed + 3,
     mapName,
-    plantSite,
-    roundFlags
-  );
-  maybeUtilityDamage(
-    teamStates[ctKey],
-    teamStates[tKey],
+    site: plantSite,
+    roundFlags,
+    firstKillTaken,
+    lastDeath,
+  });
+  firstKillTaken = tUtilityResult.firstKillTaken;
+  lastDeath = tUtilityResult.lastDeath;
+  const ctUtilityResult = maybeUtilityDamage({
+    attackingTeam: teamStates[ctKey],
+    defendingTeam: teamStates[tKey],
+    attackingTeamKey: ctKey,
+    defendingTeamKey: tKey,
+    teamStates,
     logs,
-    elapsed + 4,
+    timeline,
+    elapsed: elapsed + 4,
     mapName,
-    plantSite,
-    roundFlags
-  );
+    site: plantSite,
+    roundFlags,
+    firstKillTaken,
+    lastDeath,
+  });
+  firstKillTaken = ctUtilityResult.firstKillTaken;
+  lastDeath = ctUtilityResult.lastDeath;
 
   const earlyRange = MAP_CONFIGS[mapName].awpWeight > 1.05 || strategy.id === "midControl" ? "long" : "mid";
   const earlyAttackerKey =
@@ -2638,7 +2769,15 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
         logs,
         elapsed + 4,
         `${flashSupport.nickname} flashes ${pickZone(mapName, plantSite)}, blinding ${earlyDefender.nickname} for ${round(rand(0.9, 1.6), 1)}s`,
-        "flash"
+        "flash",
+        {
+          timeline,
+          snapshot: buildPlaybackSnapshot(teamStates),
+          meta: {
+            actorId: flashSupport.id,
+            victimId: earlyDefender.id,
+          },
+        }
       );
     }
 
@@ -2659,6 +2798,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       flashSupport,
       lastDeath,
       tacticalPenalty,
+      timeline,
     });
     elapsed = duelResult.elapsed;
     firstKillTaken = duelResult.firstKillTaken;
@@ -2673,6 +2813,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     teamStates,
     mapName,
     logs,
+    timeline,
     elapsed,
     roundFlags,
     firstKillTaken,
@@ -2696,7 +2837,15 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
         logs,
         elapsed + 1,
         `${teamAlive[0].nickname} goes for the 1v${enemyAlive.length} clutch`,
-        "clutch"
+        "clutch",
+        {
+          timeline,
+          snapshot: buildPlaybackSnapshot(teamStates),
+          meta: {
+            actorId: teamAlive[0].id,
+            clutchAttempt: true,
+          },
+        }
       );
     }
   };
@@ -2726,7 +2875,16 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       logs,
       elapsed,
       `Bomb planted at ${plantSite} by ${planter.nickname}`,
-      "bomb"
+      "bomb",
+      {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+        meta: {
+          actorId: planter.id,
+          bombPlanted: true,
+          plantSite,
+        },
+      }
     );
   }
 
@@ -2761,7 +2919,15 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
         logs,
         elapsed + 1,
         `${flashSupport.nickname} sets up the peek with a pop flash into ${pickZone(mapName, plantSite)}`,
-        "flash"
+        "flash",
+        {
+          timeline,
+          snapshot: buildPlaybackSnapshot(teamStates),
+          meta: {
+            actorId: flashSupport.id,
+            victimId: defender.id,
+          },
+        }
       );
     }
 
@@ -2782,6 +2948,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       flashSupport,
       lastDeath,
       tacticalPenalty,
+      timeline,
     });
 
     elapsed = duelResult.elapsed;
@@ -2809,11 +2976,25 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       if (Math.random() < defuseChance) {
         winnerKey = ctKey;
         reason = "defuse";
-        elapsedLog(logs, elapsed + 6, `${defuser.nickname} sticks the defuse... success! Round CT`, "bomb");
+        elapsedLog(logs, elapsed + 6, `${defuser.nickname} sticks the defuse... success! Round CT`, "bomb", {
+          timeline,
+          snapshot: buildPlaybackSnapshot(teamStates),
+          meta: {
+            actorId: defuser.id,
+            defuse: true,
+          },
+        });
       } else {
         winnerKey = tKey;
         reason = "bomb exploded";
-        elapsedLog(logs, elapsed + 8, `Bomb explodes on ${plantSite} and ${teamStates[tKey].team.tag} lock it in`, "bomb");
+        elapsedLog(logs, elapsed + 8, `Bomb explodes on ${plantSite} and ${teamStates[tKey].team.tag} lock it in`, "bomb", {
+          timeline,
+          snapshot: buildPlaybackSnapshot(teamStates),
+          meta: {
+            bombExploded: true,
+            plantSite,
+          },
+        });
       }
     } else {
       winnerKey = ctKey;
@@ -2823,7 +3004,14 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     winnerKey = tKey;
     reason = bombPlanted ? "bomb exploded" : "elimination";
     if (bombPlanted) {
-      elapsedLog(logs, elapsed + 4, `Bomb explodes on ${plantSite} with no CTs left in the server`, "bomb");
+      elapsedLog(logs, elapsed + 4, `Bomb explodes on ${plantSite} with no CTs left in the server`, "bomb", {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+        meta: {
+          bombExploded: true,
+          plantSite,
+        },
+      });
     }
   } else if (bombPlanted) {
     const defuser = [...aliveCTPlayers].sort((left, right) => right.gameSense - left.gameSense)[0];
@@ -2837,11 +3025,25 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     if (Math.random() < retakeChance && defuser) {
       winnerKey = ctKey;
       reason = "defuse";
-      elapsedLog(logs, elapsed + 6, `${defuser.nickname} clears the last angle and completes the defuse`, "bomb");
+      elapsedLog(logs, elapsed + 6, `${defuser.nickname} clears the last angle and completes the defuse`, "bomb", {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+        meta: {
+          actorId: defuser.id,
+          defuse: true,
+        },
+      });
     } else {
       winnerKey = tKey;
       reason = "bomb exploded";
-      elapsedLog(logs, elapsed + 8, `The bomb timer runs out and ${teamStates[tKey].team.tag} convert the post-plant`, "bomb");
+      elapsedLog(logs, elapsed + 8, `The bomb timer runs out and ${teamStates[tKey].team.tag} convert the post-plant`, "bomb", {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+        meta: {
+          bombExploded: true,
+          plantSite,
+        },
+      });
     }
   } else {
     winnerKey =
@@ -2857,7 +3059,10 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
         : tKey;
     reason = winnerKey === ctKey ? "time" : "elimination";
     if (winnerKey === ctKey) {
-      elapsedLog(logs, elapsed + 7, `Time expires and ${teamStates[ctKey].team.tag} hold the line`, "time");
+      elapsedLog(logs, elapsed + 7, `Time expires and ${teamStates[ctKey].team.tag} hold the line`, "time", {
+        timeline,
+        snapshot: buildPlaybackSnapshot(teamStates),
+      });
     }
   }
 
@@ -2943,10 +3148,13 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       reason,
       bombPlanted,
       plantSite,
+      scoreBefore: economy.score,
       scoreAfter,
       roundType: roundContext.roundType,
       timeoutCalled: roundContext.timeoutCalled,
       logs,
+      timeline,
+      startLoadouts,
       economy: {
         teamAEquipmentValue: preparedTeamA.totalLoadoutValue,
         teamBEquipmentValue: preparedTeamB.totalLoadoutValue,

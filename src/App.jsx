@@ -320,6 +320,7 @@ function loadStoredSnapshot() {
       language: "en",
       siteMode: null,
       liveLayoutMode: "broadcast",
+      livePresentationMode: "semi",
     };
   }
 
@@ -333,6 +334,7 @@ function loadStoredSnapshot() {
         language: "en",
         siteMode: null,
         liveLayoutMode: "broadcast",
+        livePresentationMode: "semi",
       };
     }
 
@@ -358,6 +360,7 @@ function loadStoredSnapshot() {
       language: parsed.language ?? "en",
       siteMode: parsed.siteMode ?? null,
       liveLayoutMode: parsed.liveLayoutMode ?? "broadcast",
+      livePresentationMode: parsed.livePresentationMode ?? "semi",
     };
   } catch {
     return {
@@ -367,6 +370,7 @@ function loadStoredSnapshot() {
       language: "en",
       siteMode: null,
       liveLayoutMode: "broadcast",
+      livePresentationMode: "semi",
     };
   }
 }
@@ -512,6 +516,8 @@ function App() {
   const [language, setLanguage] = useState(initialSnapshot.language ?? "en");
   const [siteMode, setSiteMode] = useState(initialSnapshot.siteMode ?? null);
   const [liveLayoutMode, setLiveLayoutMode] = useState(initialSnapshot.liveLayoutMode ?? "broadcast");
+  const [livePresentationMode, setLivePresentationMode] = useState(initialSnapshot.livePresentationMode ?? "semi");
+  const [roundPlayback, setRoundPlayback] = useState(null);
   const [teamDraft, setTeamDraft] = useState(
     deepClone(state.teams.find((team) => team.id === state.selectedTeamId) ?? createBlankTeam())
   );
@@ -529,6 +535,7 @@ function App() {
   const roundStartedAtRef = useRef(Date.now());
   const vetoStartTimeoutRef = useRef(null);
   const instantMatchHandledRef = useRef(null);
+  const playbackTimersRef = useRef([]);
   const t = (key) => (language === "ru" ? COPY_RU[key] : COPY[language]?.[key]) ?? COPY.en[key] ?? key;
 
   const pushToast = (message, tone = "success") => {
@@ -579,11 +586,12 @@ function App() {
       language,
       siteMode,
       liveLayoutMode,
+      livePresentationMode,
       lastSavedAt: new Date().toISOString(),
     });
     window.localStorage.setItem(STORAGE_KEY, serialized);
     setLastSavedAt(JSON.parse(serialized).lastSavedAt);
-  }, [state, matchSetup, language, siteMode, liveLayoutMode]);
+  }, [state, matchSetup, language, siteMode, liveLayoutMode, livePresentationMode]);
 
   useEffect(() => {
     const phoneLiveMode =
@@ -628,10 +636,13 @@ function App() {
   useEffect(() => {
     window.clearInterval(roundIntervalRef.current);
     window.clearInterval(progressIntervalRef.current);
+    playbackTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    playbackTimersRef.current = [];
     setRoundProgress(0);
 
     if (!state.currentMatch || state.currentMatch.status !== "live") {
       instantMatchHandledRef.current = null;
+      setRoundPlayback(null);
       return undefined;
     }
 
@@ -648,12 +659,63 @@ function App() {
 
     const speed = SPEED_OPTIONS.find((option) => option.id === state.currentMatch.speed)?.intervalMs ?? 5000;
     roundStartedAtRef.current = Date.now();
+    setRoundPlayback(null);
 
     progressIntervalRef.current = window.setInterval(() => {
       setRoundProgress(
         clamp((Date.now() - roundStartedAtRef.current) / speed, 0, 1)
       );
     }, 100);
+
+    if (livePresentationMode === "live") {
+      const currentMatch = liveMatchRef.current;
+      if (!currentMatch || currentMatch.status !== "live") {
+        return undefined;
+      }
+
+      const nextMatch = stepMatch(currentMatch);
+      const playbackSummary = nextMatch.latestRound;
+      const playbackFrames = playbackSummary?.timeline ?? [];
+      const frameDelay = clamp(
+        Math.floor((speed - 320) / Math.max(1, playbackFrames.length || 1)),
+        currentMatch.speed === "slow" ? 120 : 180,
+        currentMatch.speed === "slow" ? 280 : 520
+      );
+      const commitDelay = Math.max(speed, playbackFrames.length * frameDelay + 260);
+
+      setRoundPlayback({
+        summary: playbackSummary,
+        frameIndex: -1,
+      });
+
+      playbackFrames.forEach((frame, index) => {
+        const timerId = window.setTimeout(() => {
+          setRoundPlayback((current) =>
+            current?.summary?.roundNumber === playbackSummary?.roundNumber
+              ? { ...current, frameIndex: index }
+              : current
+          );
+        }, frameDelay * (index + 1));
+        playbackTimersRef.current.push(timerId);
+      });
+
+      roundIntervalRef.current = window.setTimeout(() => {
+        setRoundPlayback(null);
+        if (nextMatch.status === "finished") {
+          dispatch({ type: "FINISH_MATCH", payload: nextMatch });
+          pushToast("Series complete.");
+        } else {
+          dispatch({ type: "SET_MATCH", payload: nextMatch });
+        }
+      }, commitDelay);
+
+      return () => {
+        window.clearTimeout(roundIntervalRef.current);
+        window.clearInterval(progressIntervalRef.current);
+        playbackTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+        playbackTimersRef.current = [];
+      };
+    }
 
     roundIntervalRef.current = window.setInterval(() => {
       const currentMatch = liveMatchRef.current;
@@ -677,8 +739,10 @@ function App() {
     return () => {
       window.clearInterval(roundIntervalRef.current);
       window.clearInterval(progressIntervalRef.current);
+      playbackTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      playbackTimersRef.current = [];
     };
-  }, [state.currentMatch?.id, state.currentMatch?.status, state.currentMatch?.speed]);
+  }, [state.currentMatch?.id, state.currentMatch?.status, state.currentMatch?.speed, livePresentationMode]);
 
   const selectedTeam = state.teams.find((team) => team.id === state.selectedTeamId) ?? null;
   const filteredHistory = historyFilter
@@ -868,6 +932,9 @@ function App() {
                 mobileSite={mobileSite}
                 layoutMode={effectiveLiveLayout}
                 onLayoutModeChange={setLiveLayoutMode}
+                presentationMode={livePresentationMode}
+                onPresentationModeChange={setLivePresentationMode}
+                roundPlayback={roundPlayback}
                 fullscreen={phoneLiveMode}
               />
             )}
@@ -2342,13 +2409,22 @@ function LiveMatchView({
   mobileSite = false,
   layoutMode = "broadcast",
   onLayoutModeChange,
+  presentationMode = "semi",
+  onPresentationModeChange,
+  roundPlayback = null,
   fullscreen = false,
 }) {
   const { t } = useI18n();
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
-  const latestRound = activeMap.lastRoundSummary;
-  const teamAPlayers = latestRound?.loadouts.teamA ?? liveRowsFromTeam(activeMap.teamAState);
-  const teamBPlayers = latestRound?.loadouts.teamB ?? liveRowsFromTeam(activeMap.teamBState);
+  const playbackSummary = roundPlayback?.summary ?? null;
+  const playbackFrame =
+    playbackSummary && roundPlayback.frameIndex >= 0
+      ? playbackSummary.timeline?.[Math.min(roundPlayback.frameIndex, (playbackSummary.timeline?.length ?? 1) - 1)] ?? null
+      : null;
+  const playbackSnapshot = playbackFrame?.snapshot ?? playbackSummary?.startLoadouts ?? null;
+  const latestRound = playbackSummary ?? activeMap.lastRoundSummary;
+  const teamAPlayers = playbackSnapshot?.teamA ?? latestRound?.loadouts.teamA ?? liveRowsFromTeam(activeMap.teamAState);
+  const teamBPlayers = playbackSnapshot?.teamB ?? latestRound?.loadouts.teamB ?? liveRowsFromTeam(activeMap.teamBState);
   const teamAState = activeMap.teamAState;
   const teamBState = activeMap.teamBState;
   const roundClock = Math.max(0, Math.round(115 * (1 - roundProgress)));
@@ -2356,6 +2432,28 @@ function LiveMatchView({
     ...entry,
     label: entry.label,
   }));
+  const feedEntries = playbackSummary
+    ? (playbackSummary.timeline ?? [])
+        .slice(0, Math.max(0, roundPlayback.frameIndex + 1))
+        .map((entry) => ({
+          ...entry,
+          roundNumber: playbackSummary.roundNumber,
+          mapName: activeMap.mapName,
+        }))
+        .reverse()
+    : activeMap.allLogs.slice(0, 20);
+  const currentPlaybackEvent = playbackFrame ?? null;
+  const liveStatusLabel = playbackSummary
+    ? currentPlaybackEvent?.openingKill
+      ? "Opening frag"
+      : currentPlaybackEvent?.bombPlanted
+        ? "Bomb planted"
+        : currentPlaybackEvent?.defuse
+          ? "Defuse attempt"
+          : currentPlaybackEvent?.kind === "clutch"
+            ? "Clutch live"
+            : "Round live"
+    : null;
 
   if (mobileSite || layoutMode === "phone") {
     return (
@@ -2371,6 +2469,10 @@ function LiveMatchView({
         roundProgress={roundProgress}
         layoutMode={layoutMode}
         onLayoutModeChange={onLayoutModeChange}
+        presentationMode={presentationMode}
+        onPresentationModeChange={onPresentationModeChange}
+        currentPlaybackEvent={currentPlaybackEvent}
+        feedEntries={feedEntries}
         fullscreen={fullscreen}
         mobileSite={mobileSite}
       />
@@ -2391,7 +2493,12 @@ function LiveMatchView({
         <Panel
           title={t("live_match")}
           subtitle="Compact fullscreen HUD with scores, sides, economy, and players."
-          action={<LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} />}
+          action={
+            <div className="flex items-center gap-2">
+              <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} />
+            </div>
+          }
           className="p-4"
         >
           <div className="rounded-2xl border border-border bg-card/70 p-4">
@@ -2452,14 +2559,18 @@ function LiveMatchView({
                   <div className="rounded-2xl border border-border bg-card/60 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Latest Round</div>
+                        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
+                          {playbackSummary ? "Live Round" : "Latest Round"}
+                        </div>
                         <div className="font-display text-3xl text-text">{latestRound.strategy}</div>
                         <div className="mt-1 text-sm text-muted">
-                          {latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by {reasonLabel(latestRound.reason)}
+                          {playbackSummary
+                            ? currentPlaybackEvent?.label ?? "Freeze time, buys locked in, waiting for the first duel."
+                            : `${latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by ${reasonLabel(latestRound.reason)}`}
                         </div>
                       </div>
                       <div className="rounded-full border border-border px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted">
-                        {latestRound.displayRound}
+                        {playbackSummary ? liveStatusLabel ?? latestRound.displayRound : latestRound.displayRound}
                       </div>
                     </div>
                     <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted">
@@ -2476,6 +2587,11 @@ function LiveMatchView({
                     {latestRound.timeoutCalled && (
                       <div className="mt-3 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
                         Tactical timeout: {latestRound.timeoutCalled === "teamA" ? match.teamA.coach.nickname : match.teamB.coach.nickname}
+                      </div>
+                    )}
+                    {playbackSummary && currentPlaybackEvent?.openingKill && (
+                      <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                        First death of the round just landed.
                       </div>
                     )}
                   </div>
@@ -2495,12 +2611,20 @@ function LiveMatchView({
                   </div>
                   <div className="grid min-h-0 grid-cols-2 gap-3">
                     <div className="rounded-2xl border border-border bg-card/60 p-4">
-                      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Spotlight</div>
+                      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">
+                        {playbackSummary ? "Current Event" : "Spotlight"}
+                      </div>
                       <div className="mt-2 font-display text-2xl text-text">
-                        {latestRound.clutch ? `${latestRound.clutch.nickname} 1v${latestRound.clutch.size}` : "Structured round"}
+                        {playbackSummary
+                          ? currentPlaybackEvent?.label ?? "Freeze time"
+                          : latestRound.clutch
+                            ? `${latestRound.clutch.nickname} 1v${latestRound.clutch.size}`
+                            : "Structured round"}
                       </div>
                       <div className="mt-2 text-sm text-muted">
-                        {latestRound.highlight ?? "No special swing moment on the latest round."}
+                        {playbackSummary
+                          ? "The round is being played event by event for full-stream coverage."
+                          : latestRound.highlight ?? "No special swing moment on the latest round."}
                       </div>
                     </div>
                     <div className="rounded-2xl border border-border bg-card/60 p-4">
@@ -2508,15 +2632,21 @@ function LiveMatchView({
                       <div className="mt-3 grid grid-cols-2 gap-3">
                         <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
                           <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{match.teamA.tag}</div>
-                          <div className="mt-1 numbers text-lg text-text">{formatMoney(latestRound.economy.teamATotalMoney)}</div>
+                          <div className="mt-1 numbers text-lg text-text">
+                            {formatMoney(playbackSummary ? latestRound.economy.teamAEquipmentValue : latestRound.economy.teamATotalMoney)}
+                          </div>
                         </div>
                         <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
                           <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{match.teamB.tag}</div>
-                          <div className="mt-1 numbers text-lg text-text">{formatMoney(latestRound.economy.teamBTotalMoney)}</div>
+                          <div className="mt-1 numbers text-lg text-text">
+                            {formatMoney(playbackSummary ? latestRound.economy.teamBEquipmentValue : latestRound.economy.teamBTotalMoney)}
+                          </div>
                         </div>
                       </div>
                       <div className="mt-3 text-sm text-muted">
-                        Equip value {formatMoney(latestRound.economy.teamAEquipmentValue)} / {formatMoney(latestRound.economy.teamBEquipmentValue)}
+                        {playbackSummary
+                          ? `Round started at ${latestRound.scoreBefore.teamA}-${latestRound.scoreBefore.teamB}`
+                          : `Equip value ${formatMoney(latestRound.economy.teamAEquipmentValue)} / ${formatMoney(latestRound.economy.teamBEquipmentValue)}`}
                       </div>
                     </div>
                   </div>
@@ -2529,8 +2659,8 @@ function LiveMatchView({
             </Panel>
             <Panel title={t("live_feed")} subtitle="Newest play-by-play stays on top for casting." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {activeMap.allLogs.slice(0, 20).map((log) => (
-                  <div key={log.id} className="rounded-xl border border-border bg-card/60 px-3 py-2.5">
+                {feedEntries.map((log, index) => (
+                  <div key={log.id} className={classNames("rounded-xl border px-3 py-2.5", playbackSummary && index === 0 ? "border-accent/40 bg-accent/10" : "border-border bg-card/60")}>
                     <div className="numbers text-[11px] text-accent">[{log.clock}] {log.mapName} {`R${log.roundNumber}`}</div>
                     <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
                   </div>
@@ -2611,6 +2741,31 @@ function LayoutModeSwitch({ layoutMode, onChange, compact = false }) {
           )}
         >
           {mode.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PresentationModeSwitch({ mode, onChange }) {
+  return (
+    <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
+      {[
+        { id: "semi", label: "Semi-Live" },
+        { id: "live", label: "Live" },
+      ].map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onChange?.(item.id)}
+          className={classNames(
+            "rounded-lg border px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition",
+            mode === item.id
+              ? "border-accent bg-accent/10 text-accent"
+              : "border-transparent text-muted hover:text-text"
+          )}
+        >
+          {item.label}
         </button>
       ))}
     </div>
