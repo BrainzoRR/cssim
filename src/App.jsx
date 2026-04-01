@@ -277,6 +277,7 @@ function loadStoredSnapshot() {
       setup: defaultSetup(fallback.teams),
       lastSavedAt: null,
       language: "en",
+      siteMode: null,
       liveLayoutMode: "broadcast",
     };
   }
@@ -289,6 +290,7 @@ function loadStoredSnapshot() {
         setup: defaultSetup(fallback.teams),
         lastSavedAt: null,
         language: "en",
+        siteMode: null,
         liveLayoutMode: "broadcast",
       };
     }
@@ -312,6 +314,7 @@ function loadStoredSnapshot() {
       setup: parsed.matchSetup ?? defaultSetup(teams),
       lastSavedAt: parsed.lastSavedAt ?? null,
       language: parsed.language ?? "en",
+      siteMode: parsed.siteMode ?? null,
       liveLayoutMode: parsed.liveLayoutMode ?? "broadcast",
     };
   } catch {
@@ -320,6 +323,7 @@ function loadStoredSnapshot() {
       setup: defaultSetup(fallback.teams),
       lastSavedAt: null,
       language: "en",
+      siteMode: null,
       liveLayoutMode: "broadcast",
     };
   }
@@ -459,6 +463,7 @@ function App() {
   const [matchSetup, setMatchSetup] = useState(initialSnapshot.setup);
   const [lastSavedAt, setLastSavedAt] = useState(initialSnapshot.lastSavedAt);
   const [language, setLanguage] = useState(initialSnapshot.language ?? "en");
+  const [siteMode, setSiteMode] = useState(initialSnapshot.siteMode ?? null);
   const [liveLayoutMode, setLiveLayoutMode] = useState(initialSnapshot.liveLayoutMode ?? "broadcast");
   const [teamDraft, setTeamDraft] = useState(
     deepClone(state.teams.find((team) => team.id === state.selectedTeamId) ?? createBlankTeam())
@@ -523,15 +528,19 @@ function App() {
       state,
       matchSetup,
       language,
+      siteMode,
       liveLayoutMode,
       lastSavedAt: new Date().toISOString(),
     });
     window.localStorage.setItem(STORAGE_KEY, serialized);
     setLastSavedAt(JSON.parse(serialized).lastSavedAt);
-  }, [state, matchSetup, language, liveLayoutMode]);
+  }, [state, matchSetup, language, siteMode, liveLayoutMode]);
 
   useEffect(() => {
-    const phoneLiveMode = state.activeView === "live" && state.currentMatch && liveLayoutMode === "phone";
+    const phoneLiveMode =
+      state.activeView === "live" &&
+      state.currentMatch &&
+      (siteMode === "mobile" || liveLayoutMode === "phone");
     document.documentElement.classList.toggle("phone-live", Boolean(phoneLiveMode));
     document.body.classList.toggle("phone-live", Boolean(phoneLiveMode));
 
@@ -539,7 +548,7 @@ function App() {
       document.documentElement.classList.remove("phone-live");
       document.body.classList.remove("phone-live");
     };
-  }, [state.activeView, state.currentMatch, liveLayoutMode]);
+  }, [state.activeView, state.currentMatch, liveLayoutMode, siteMode]);
 
   useEffect(() => {
     if (!state.currentMatch || state.currentMatch.status !== "veto" || state.activeView !== "veto") {
@@ -701,20 +710,36 @@ function App() {
 
   function renderApp() {
     const liveFocus = state.activeView === "live" && state.currentMatch;
-    const phoneLiveMode = liveFocus && liveLayoutMode === "phone";
+    const effectiveLiveLayout = siteMode === "mobile" ? "phone" : liveLayoutMode;
+    const mobileSite = siteMode === "mobile";
+    const phoneLiveMode = liveFocus && effectiveLiveLayout === "phone";
     return (
       <div className={classNames(phoneLiveMode ? "h-[100dvh] overflow-hidden bg-hero-grid" : "min-h-screen bg-hero-grid")}>
-        {!phoneLiveMode && (
-          <TopNav
-            activeView={state.activeView}
-            onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
-          />
-        )}
+        {!phoneLiveMode &&
+          (mobileSite ? (
+            <MobileHeader
+              activeView={state.activeView}
+              siteMode={siteMode}
+              onSiteModeChange={(mode) => {
+                setSiteMode(mode);
+                setLiveLayoutMode(mode === "mobile" ? "phone" : "broadcast");
+              }}
+              language={language}
+              onLanguageChange={setLanguage}
+            />
+          ) : (
+            <TopNav
+              activeView={state.activeView}
+              onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
+            />
+          ))}
         <div
           className={classNames(
             "mx-auto flex gap-6",
             phoneLiveMode
               ? "h-[100dvh] w-screen overflow-hidden px-0 py-0"
+              : mobileSite
+                ? "w-screen px-3 py-3 pb-24"
               : liveFocus
                 ? "w-[min(1840px,99vw)] px-3 py-3"
                 : "w-[min(1600px,95vw)] px-4 py-6"
@@ -725,6 +750,7 @@ function App() {
               <HomeView
                 teams={state.teams}
                 history={state.matchHistory}
+                mobile={mobileSite}
                 onQuickStart={() => dispatch({ type: "NAVIGATE", payload: "match-setup" })}
                 onOpenTeams={() => dispatch({ type: "NAVIGATE", payload: "teams" })}
                 onOpenHistory={() => dispatch({ type: "NAVIGATE", payload: "history" })}
@@ -733,6 +759,7 @@ function App() {
             {state.activeView === "teams" && (
               <TeamsView
                 teams={state.teams}
+                mobile={mobileSite}
                 selectedTeamId={state.selectedTeamId}
                 teamDraft={teamDraft}
                 isNewTeam={isNewTeam}
@@ -761,6 +788,7 @@ function App() {
             {state.activeView === "match-setup" && (
               <MatchSetupView
                 teams={state.teams}
+                mobile={mobileSite}
                 setup={matchSetup}
                 onSetupChange={setMatchSetup}
                 onStartVeto={handleStartVeto}
@@ -768,23 +796,25 @@ function App() {
               />
             )}
             {state.activeView === "veto" && state.currentMatch && (
-              <VetoView match={state.currentMatch} revealedCount={vetoRevealCount} />
+              <VetoView match={state.currentMatch} revealedCount={vetoRevealCount} mobile={mobileSite} />
             )}
             {state.activeView === "live" && state.currentMatch && (
               <LiveMatchView
                 match={state.currentMatch}
                 roundProgress={roundProgress}
-                layoutMode={liveLayoutMode}
+                mobileSite={mobileSite}
+                layoutMode={effectiveLiveLayout}
                 onLayoutModeChange={setLiveLayoutMode}
                 fullscreen={phoneLiveMode}
                 resultsFallback={state.resultsData}
               />
             )}
             {state.activeView === "results" && state.resultsData && (
-              <ResultsView results={state.resultsData} />
+              <ResultsView results={state.resultsData} mobile={mobileSite} />
             )}
             {state.activeView === "history" && (
               <HistoryView
+                mobile={mobileSite}
                 filter={historyFilter}
                 onFilterChange={setHistoryFilter}
                 entries={filteredHistory}
@@ -801,7 +831,7 @@ function App() {
               />
             )}
           </div>
-          <aside className={classNames("hidden w-[300px] xl:block", liveFocus && "xl:hidden", phoneLiveMode && "hidden")}>
+          <aside className={classNames("hidden w-[300px] xl:block", liveFocus && "xl:hidden", phoneLiveMode && "hidden", mobileSite && "xl:hidden")}>
             <SideRail
               selectedTeam={selectedTeam}
               currentMatch={state.currentMatch}
@@ -811,10 +841,16 @@ function App() {
             />
           </aside>
         </div>
-        {!liveFocus && (
+        {!liveFocus && !mobileSite && (
           <footer className="border-t border-border bg-surface/80 px-6 py-3 text-sm text-muted">
             {t("last_saved")}: {lastSavedAt ? new Date(lastSavedAt).toLocaleString() : t("not_saved")}
           </footer>
+        )}
+        {mobileSite && !phoneLiveMode && (
+          <MobileBottomNav
+            activeView={state.activeView}
+            onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
+          />
         )}
         <input
           ref={importInputRef}
@@ -856,6 +892,14 @@ function App() {
               pushToast("Data replaced.");
             }}
             onCancel={() => setPendingImport(null)}
+          />
+        )}
+        {!siteMode && (
+          <SiteModeModal
+            onChoose={(mode) => {
+              setSiteMode(mode);
+              setLiveLayoutMode(mode === "mobile" ? "phone" : "broadcast");
+            }}
           />
         )}
       </div>
@@ -960,6 +1004,130 @@ function TopNav({ activeView, onNavigate }) {
   );
 }
 
+function MobileHeader({ activeView, siteMode, onSiteModeChange, language, onLanguageChange }) {
+  const { t } = useI18n();
+  const currentNav = NAV_ITEMS.find((item) => item.id === activeView);
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur-md">
+      <div className="flex items-center justify-between gap-3 px-3 py-3">
+        <div className="min-w-0">
+          <div className="font-display text-[10px] uppercase tracking-[0.28em] text-accent">{t("app_title")}</div>
+          <div className="truncate font-display text-xl text-text">{currentNav?.label ?? t("nav_home")}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
+            {["desktop", "mobile"].map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onSiteModeChange(mode)}
+                className={classNames(
+                  "rounded-lg px-2.5 py-1 text-[11px] uppercase tracking-[0.14em]",
+                  siteMode === mode ? "bg-accent/10 text-accent" : "text-muted"
+                )}
+              >
+                {mode === "desktop" ? "PC" : "Mobile"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
+            {["en", "ru"].map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => onLanguageChange(lang)}
+                className={classNames(
+                  "rounded-lg px-2 py-1 text-[11px] uppercase tracking-[0.14em]",
+                  language === lang ? "bg-accent/10 text-accent" : "text-muted"
+                )}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function MobileBottomNav({ activeView, onNavigate }) {
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-surface/95 px-2 py-2 backdrop-blur-md">
+      <div className="grid grid-cols-6 gap-1">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const active = activeView === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate(item.id)}
+              className={classNames(
+                "flex flex-col items-center justify-center rounded-xl px-1 py-2 text-[10px]",
+                active ? "bg-accent/10 text-accent" : "text-muted"
+              )}
+            >
+              <Icon size={16} />
+              <span className="mt-1">{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function SiteModeModal({ onChoose }) {
+  const isMobileSuggested =
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 1024px)").matches : false;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="panel w-full max-w-2xl rounded-3xl p-6 sm:p-8">
+        <div className="text-xs uppercase tracking-[0.28em] text-accent">Version Select</div>
+        <h2 className="mt-3 font-display text-4xl text-text">Choose how the site should open</h2>
+        <p className="mt-3 text-sm text-muted">
+          Desktop keeps the full broadcast layout. Mobile switches the whole site to a phone-first shell with simplified navigation and a mobile live HUD.
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => onChoose("desktop")}
+            className="rounded-3xl border border-border bg-card/70 p-5 text-left transition hover:border-accent/35"
+          >
+            <div className="font-display text-3xl text-text">Desktop</div>
+            <div className="mt-2 text-sm text-muted">
+              Wide layout, full tables, broadcast HUD, best for PC and tablet landscape.
+            </div>
+            {isMobileSuggested ? null : (
+              <div className="mt-4 inline-flex rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs text-accent">
+                Recommended
+              </div>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChoose("mobile")}
+            className="rounded-3xl border border-border bg-card/70 p-5 text-left transition hover:border-accent/35"
+          >
+            <div className="font-display text-3xl text-text">Mobile</div>
+            <div className="mt-2 text-sm text-muted">
+              Compact phone-first navigation, adapted content flow, and a dedicated mobile live screen.
+            </div>
+            {isMobileSuggested ? (
+              <div className="mt-4 inline-flex rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs text-accent">
+                Recommended
+              </div>
+            ) : null}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MetricCard({ icon: Icon, label, value, tone = "default" }) {
   return (
     <div
@@ -981,7 +1149,7 @@ function MetricCard({ icon: Icon, label, value, tone = "default" }) {
   );
 }
 
-function HomeView({ teams, history, onQuickStart, onOpenTeams, onOpenHistory }) {
+function HomeView({ teams, history, mobile = false, onQuickStart, onOpenTeams, onOpenHistory }) {
   const { t } = useI18n();
   const topTeams = [...teams].sort((left, right) => getTeamStrength(right) - getTeamStrength(left)).slice(0, 3);
   return (
@@ -1000,14 +1168,14 @@ function HomeView({ teams, history, onQuickStart, onOpenTeams, onOpenHistory }) 
           </button>
         }
       >
-        <div className="grid grid-cols-4 gap-4">
+        <div className={classNames("grid gap-4", mobile ? "grid-cols-2" : "grid-cols-4")}>
           <MetricCard icon={Users} label="Saved Teams" value={teams.length} tone="accent" />
           <MetricCard icon={History} label="Stored Matches" value={history.length} />
           <MetricCard icon={Trophy} label="Formats" value={MATCH_FORMATS.join(" / ")} />
           <MetricCard icon={Sparkles} label="Map Pool" value={MAP_POOL.length} />
         </div>
       </Panel>
-      <div className="grid grid-cols-[1.3fr_0.7fr] gap-6">
+      <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[1.3fr_0.7fr]")}>
         <Panel
           title={t("top_teams")}
           subtitle="Composite strength mixes player ratings with coach influence."
@@ -1436,6 +1604,7 @@ function PlayerEditorCard({ player, players, onChange, onRemove, onSetCaptain })
 
 function TeamsView({
   teams,
+  mobile = false,
   selectedTeamId,
   teamDraft,
   isNewTeam,
@@ -1479,7 +1648,7 @@ function TeamsView({
   };
 
   return (
-    <div className="grid grid-cols-[320px_1fr] gap-6">
+    <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[320px_1fr]")}>
       <Panel
         title={t("team_manager")}
         subtitle="Create, edit, and tune rosters, coaches, captains, and map pools."
@@ -1552,9 +1721,9 @@ function TeamsView({
             </div>
           }
         >
-          <div className="grid grid-cols-[1fr_320px] gap-6">
+          <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[1fr_320px]")}>
             <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
+              <div className={classNames("grid gap-4", mobile ? "grid-cols-1" : "grid-cols-2")}>
                 <label className="text-sm text-muted">
                   Team Name
                   <input
@@ -1613,7 +1782,7 @@ function TeamsView({
                     </span>
                 </label>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={classNames("grid gap-4", mobile ? "grid-cols-1" : "grid-cols-2")}>
                 <label className="text-sm text-muted">
                   Coach Name
                   <input
@@ -1643,7 +1812,7 @@ function TeamsView({
                   />
                 </label>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className={classNames("grid gap-4", mobile ? "grid-cols-1" : "grid-cols-3")}>
                 <StatSlider
                   label="Tactical Rating"
                   value={teamDraft.coach.tacticalRating}
@@ -1715,7 +1884,7 @@ function TeamsView({
             </div>
           </div>
         </Panel>
-        <div className="grid grid-cols-2 gap-6">
+        <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-2")}>
           <MapPreferenceEditor
             title="Captain / Team Preferred Maps"
             maps={teamDraft.preferredMaps}
@@ -1817,7 +1986,7 @@ function TeamSetupPreview({ team }) {
   );
 }
 
-function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatch }) {
+function MatchSetupView({ teams, setup, mobile = false, onSetupChange, onStartVeto, canStartMatch }) {
   const { t } = useI18n();
   const teamA = teams.find((team) => team.id === setup.teamAId);
   const teamB = teams.find((team) => team.id === setup.teamBId);
@@ -1839,7 +2008,7 @@ function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatc
           </button>
         }
       >
-        <div className="grid grid-cols-2 gap-6">
+        <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-2")}>
           <div className="space-y-4">
             <label className="block text-sm text-muted">
               Team A
@@ -1876,9 +2045,9 @@ function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatc
           </div>
         </div>
       </Panel>
-      <div className="grid grid-cols-[1fr_360px] gap-6">
+      <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[1fr_360px]")}>
         <Panel title={t("series_rules")} subtitle="Current sim settings match the full MR12 spec, with OT and economy enabled.">
-          <div className="grid grid-cols-3 gap-4">
+          <div className={classNames("grid gap-4", mobile ? "grid-cols-1" : "grid-cols-3")}>
             <div>
               <div className="mb-2 text-xs uppercase tracking-[0.2em] text-muted">Format</div>
               <div className="flex gap-2">
@@ -1933,7 +2102,7 @@ function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatc
               Show detailed logs
             </label>
           </div>
-          <div className="mt-6 grid grid-cols-3 gap-4">
+          <div className={classNames("mt-6 grid gap-4", mobile ? "grid-cols-2" : "grid-cols-3")}>
             {MAP_POOL.map((map) => (
               <div key={map} className="rounded-2xl border border-border bg-card/60 p-4">
                 <div className="font-display text-2xl text-text">{map}</div>
@@ -1977,13 +2146,13 @@ function ChecklistRow({ label, passed }) {
   );
 }
 
-function VetoView({ match, revealedCount }) {
+function VetoView({ match, revealedCount, mobile = false }) {
   const { t } = useI18n();
   const revealed = match.veto.steps.slice(0, revealedCount);
   return (
     <div className="space-y-6">
       <Panel title={t("veto_screen")} subtitle="Cards reveal in sequence with weighted bans, picks, and the decider map.">
-        <div className="mb-5 flex items-center justify-between rounded-2xl border border-border bg-card/70 p-5">
+        <div className={classNames("mb-5 rounded-2xl border border-border bg-card/70 p-5", mobile ? "space-y-4" : "flex items-center justify-between")}>
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">{renderLogo(match.teamA.logo)}</div>
             <div>
@@ -1991,8 +2160,8 @@ function VetoView({ match, revealedCount }) {
               <div className="text-sm text-muted">{match.teamA.tag}</div>
             </div>
           </div>
-          <div className="font-display text-4xl text-accent">VETO</div>
-          <div className="flex items-center gap-4">
+          <div className={classNames("font-display text-4xl text-accent", mobile && "text-center")}>VETO</div>
+          <div className={classNames("flex items-center gap-4", mobile && "justify-end")}>
             <div className="text-right">
               <div className="font-display text-3xl text-text">{match.teamB.name}</div>
               <div className="text-sm text-muted">{match.teamB.tag}</div>
@@ -2000,7 +2169,7 @@ function VetoView({ match, revealedCount }) {
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">{renderLogo(match.teamB.logo)}</div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className={classNames("grid gap-4", mobile ? "grid-cols-1" : "grid-cols-3")}>
           {revealed.map((step) => (
             <div
               key={step.id}
@@ -2025,7 +2194,7 @@ function VetoView({ match, revealedCount }) {
         </div>
       </Panel>
       <Panel title={t("series_order")} subtitle="Starting sides come from the weighted knife round / side-choice model.">
-        <div className="grid grid-cols-3 gap-4">
+        <div className={classNames("grid gap-4", mobile ? "grid-cols-1" : "grid-cols-3")}>
           {match.maps.map((map) => (
             <div key={map.id} className="rounded-2xl border border-border bg-card/70 p-4">
               <div className="text-xs uppercase tracking-[0.2em] text-muted">
@@ -2079,7 +2248,14 @@ function reasonLabel(reason) {
   return "Elimination";
 }
 
-function LiveMatchView({ match, roundProgress, layoutMode = "broadcast", onLayoutModeChange, fullscreen = false }) {
+function LiveMatchView({
+  match,
+  roundProgress,
+  mobileSite = false,
+  layoutMode = "broadcast",
+  onLayoutModeChange,
+  fullscreen = false,
+}) {
   const { t } = useI18n();
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
   const latestRound = activeMap.lastRoundSummary;
@@ -2093,7 +2269,7 @@ function LiveMatchView({ match, roundProgress, layoutMode = "broadcast", onLayou
     label: entry.label,
   }));
 
-  if (layoutMode === "phone") {
+  if (mobileSite || layoutMode === "phone") {
     return (
       <PhoneLandscapeLiveMatchView
         match={match}
@@ -2108,6 +2284,7 @@ function LiveMatchView({ match, roundProgress, layoutMode = "broadcast", onLayou
         layoutMode={layoutMode}
         onLayoutModeChange={onLayoutModeChange}
         fullscreen={fullscreen}
+        mobileSite={mobileSite}
       />
     );
   }
@@ -2365,6 +2542,7 @@ function PhoneLandscapeLiveMatchView({
   layoutMode,
   onLayoutModeChange,
   fullscreen,
+  mobileSite = false,
 }) {
   const { t } = useI18n();
 
@@ -2381,30 +2559,25 @@ function PhoneLandscapeLiveMatchView({
         side={teamAState.side}
         players={teamAPlayers}
       />
-      <div className="grid min-h-0 grid-rows-[92px_minmax(0,1fr)] gap-1.5 overflow-hidden">
-        <Panel
-          title={`${t("live_match")} · Phone`}
-          subtitle="Landscape phone HUD."
-          action={<LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact />}
-          className="overflow-hidden rounded-none border-x-0 border-t-0 p-2 sm:rounded-2xl sm:border sm:p-2.5"
-        >
-          <div className="rounded-xl border border-border bg-card/70 px-3 py-2.5">
+      <div className="grid min-h-0 grid-rows-[76px_minmax(0,1fr)] gap-1.5 overflow-hidden">
+        <div className="panel overflow-hidden rounded-none border-x-0 border-t-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
+          <div className="rounded-xl border border-border bg-card/70 px-3 py-2">
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
               <div>
-                <div className="font-display text-lg text-text sm:text-2xl">{match.teamA.tag}</div>
+                <div className="font-display text-sm text-text sm:text-lg">{match.teamA.tag}</div>
                 <div className="numbers text-2xl text-accent sm:text-3xl">{activeMap.score.teamA}</div>
               </div>
               <div className="text-center">
-                <div className="font-display text-xl text-accent sm:text-2xl">{activeMap.mapName}</div>
-                <div className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-muted">
+                <div className="font-display text-lg text-accent sm:text-xl">{activeMap.mapName}</div>
+                <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted">
                   {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {activeMap.overtimeNumber ? `OT ${activeMap.overtimeNumber}` : "Reg"}
                 </div>
-                <div className={classNames("mt-1 numbers text-lg", roundClock <= 10 ? "text-red-400" : "text-text")}>
+                <div className={classNames("numbers text-base", roundClock <= 10 ? "text-red-400" : "text-text")}>
                   {Math.floor(roundClock / 60)}:{String(roundClock % 60).padStart(2, "0")}
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-display text-lg text-text sm:text-2xl">{match.teamB.tag}</div>
+                <div className="font-display text-sm text-text sm:text-lg">{match.teamB.tag}</div>
                 <div className="numbers text-2xl text-sky-300 sm:text-3xl">{activeMap.score.teamB}</div>
               </div>
             </div>
@@ -2414,10 +2587,15 @@ function PhoneLandscapeLiveMatchView({
                 style={{ width: `${Math.max(4, roundProgress * 100)}%` }}
               />
             </div>
+            {!mobileSite && (
+              <div className="mt-2 flex justify-end">
+                <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact />
+              </div>
+            )}
           </div>
-        </Panel>
+        </div>
         <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_164px] gap-1.5 overflow-hidden sm:grid-cols-[minmax(0,1fr)_190px]">
-          <Panel title={t("round_hud")} subtitle="Core round context." className="min-h-0 overflow-hidden rounded-none border-x-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
+          <Panel title={mobileSite ? "" : t("round_hud")} subtitle={mobileSite ? "" : "Core round context."} className="min-h-0 overflow-hidden rounded-none border-x-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
             {latestRound ? (
               <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-2">
                 <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
@@ -2468,7 +2646,7 @@ function PhoneLandscapeLiveMatchView({
               </div>
             )}
           </Panel>
-          <Panel title={t("live_feed")} subtitle="Recent calls." className="flex min-h-0 flex-col overflow-hidden rounded-none border-x-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
+          <Panel title={mobileSite ? "" : t("live_feed")} subtitle={mobileSite ? "" : "Recent calls."} className="flex min-h-0 flex-col overflow-hidden rounded-none border-x-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
             <div className="scrollbar-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
               {activeMap.allLogs.slice(0, 8).map((log) => (
                 <div key={log.id} className="rounded-xl border border-border bg-card/60 px-2.5 py-2">
@@ -2713,7 +2891,7 @@ function LeaderCard({ title, nickname, rating, side }) {
   );
 }
 
-function ResultsView({ results }) {
+function ResultsView({ results, mobile = false }) {
   const { t } = useI18n();
   const [statsMode, setStatsMode] = useState("combined");
   const teamAPlayers = results.players.filter((player) => player.teamKey === "teamA");
@@ -2721,7 +2899,7 @@ function ResultsView({ results }) {
   return (
     <div className="space-y-6">
       <Panel title={t("series_results")} subtitle="Final scores, player leaders, map breakdowns, and highlight moments.">
-        <div className="grid grid-cols-[1fr_320px] gap-6">
+        <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[1fr_320px]")}>
           <div className="rounded-2xl border border-border bg-card/70 p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -2753,7 +2931,7 @@ function ResultsView({ results }) {
           </div>
         </div>
       </Panel>
-      <div className="grid grid-cols-[0.8fr_1.2fr] gap-6">
+      <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[0.8fr_1.2fr]")}>
         <Panel title={t("highlights")} subtitle="Auto-generated moments from clutches, spikes, and key tactical turns.">
           <div className="space-y-3">
             {results.highlights.map((highlight) => (
@@ -2778,7 +2956,7 @@ function ResultsView({ results }) {
                     {map.score.teamA}-{map.score.teamB}
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+                <div className={classNames("mt-4 grid gap-3 text-sm", mobile ? "grid-cols-1" : "grid-cols-3")}>
                   <div className="rounded-xl border border-border bg-surface/80 p-3">
                     <div className="text-xs uppercase tracking-[0.18em] text-muted">Halves</div>
                     <div className="mt-1">
@@ -2847,7 +3025,7 @@ function ResultsView({ results }) {
         {statsMode === "combined" ? (
           <StatsTable players={results.players} showTeam />
         ) : (
-          <div className="grid grid-cols-2 gap-8">
+          <div className={classNames("grid gap-8", mobile ? "grid-cols-1" : "grid-cols-2")}>
             <div className="min-w-0">
               <div className="mb-3 font-display text-2xl text-text">{results.teamA.name}</div>
               <StatsTable players={teamAPlayers} />
@@ -2918,7 +3096,7 @@ function StatsTable({ players, showTeam = false }) {
   );
 }
 
-function HistoryView({ filter, onFilterChange, entries, onOpen, onClear }) {
+function HistoryView({ filter, onFilterChange, entries, onOpen, onClear, mobile = false }) {
   const { t } = useI18n();
   return (
     <div className="space-y-6">
@@ -2956,7 +3134,7 @@ function HistoryView({ filter, onFilterChange, entries, onOpen, onClear }) {
               onClick={() => onOpen(entry)}
               className="w-full rounded-2xl border border-border bg-card/60 p-4 text-left transition hover:border-accent/30"
             >
-              <div className="flex items-center justify-between gap-4">
+              <div className={classNames("gap-4", mobile ? "space-y-3" : "flex items-center justify-between")}>
                 <div>
                   <div className="font-display text-2xl text-text">{entry.teams}</div>
                   <div className="mt-1 text-sm text-muted">
@@ -2966,7 +3144,7 @@ function HistoryView({ filter, onFilterChange, entries, onOpen, onClear }) {
                     {entry.mapsPlayed}
                   </div>
                 </div>
-                <div className="numbers text-3xl text-accent">{entry.score}</div>
+                <div className={classNames("numbers text-3xl text-accent", mobile && "text-left")}>{entry.score}</div>
               </div>
             </button>
           ))}
