@@ -1209,24 +1209,92 @@ function buildMapOption(team, map) {
   };
 }
 
-function sortBestMaps(team, availableMaps) {
-  return availableMaps
-    .map((map) => buildMapOption(team, map))
+function mapStrengthScore(team, map) {
+  return getMapPriority(team, map) * getMapModifier(team, map);
+}
+
+function mapRankIndex(preferredMaps, map) {
+  const index = (preferredMaps ?? []).indexOf(map);
+  return index === -1 ? MAP_POOL.length + 1 : index;
+}
+
+function blendedMapRank(team, map) {
+  return (
+    mapRankIndex(team.preferredMaps ?? [], map) * 0.58 +
+    mapRankIndex(team.coach?.preferredMaps ?? [], map) * 0.42
+  );
+}
+
+function buildVetoMapOption(team, opponent, map, action, stepNumber) {
+  const ownStrength = mapStrengthScore(team, map);
+  const opponentStrength = mapStrengthScore(opponent, map);
+  const matchupEdge = ownStrength - opponentStrength;
+  const ownPriority = getMapPriority(team, map);
+  const ownRank = blendedMapRank(team, map);
+  const opponentRank = blendedMapRank(opponent, map);
+  const volatility = rand(-0.14, 0.14);
+  const lateStepBonus = stepNumber >= 4 ? 0.03 : 0;
+
+  if (action === "pick") {
+    let score =
+      ownStrength * 1.2 +
+      ownPriority * 0.6 +
+      matchupEdge * 0.42 +
+      volatility;
+
+    if (ownRank <= 2.2) {
+      score += 0.16;
+    } else if (ownRank >= 4.8) {
+      score -= 0.18;
+    }
+
+    if (opponentRank <= 2.2) {
+      score -= 0.08;
+    } else if (opponentRank >= 4.8) {
+      score += 0.06;
+    }
+
+    score += lateStepBonus;
+
+    return { map, score };
+  }
+
+  let riskScore =
+    (1.22 - ownStrength) * 0.9 +
+    opponentStrength * 0.58 -
+    matchupEdge * 0.24 +
+    volatility;
+
+  if (ownRank >= 4.8) {
+    riskScore += 0.18;
+  } else if (ownRank <= 2.2) {
+    riskScore -= 0.12;
+  }
+
+  if (opponentRank <= 2.2) {
+    riskScore += 0.14;
+  }
+
+  riskScore += lateStepBonus * 0.75;
+
+  return { map, score: riskScore };
+}
+
+function chooseVetoMap(team, opponent, availableMaps, action, stepNumber) {
+  const options = availableMaps
+    .map((map) => buildVetoMapOption(team, opponent, map, action, stepNumber))
     .sort((left, right) => right.score - left.score);
-}
 
-function sortWorstMaps(team, availableMaps) {
-  return availableMaps
-    .map((map) => buildMapOption(team, map))
-    .sort((left, right) => left.score - right.score);
-}
+  const shortlistSize = Math.min(options.length, options.length >= 5 ? 4 : 3);
+  const shortlist = options.slice(0, shortlistSize);
+  const bestScore = shortlist[0]?.score ?? 0;
+  const temperature = action === "pick" ? 0.12 : 0.14;
 
-function pickBestAvailable(team, availableMaps) {
-  return sortBestMaps(team, availableMaps)[0]?.map ?? pick(availableMaps);
-}
-
-function pickWorstAvailable(team, availableMaps) {
-  return sortWorstMaps(team, availableMaps)[0]?.map ?? pick(availableMaps);
+  return (
+    weightedPick(shortlist, (option) =>
+      Math.max(0.05, Math.exp((option.score - bestScore) / temperature))
+    )?.map ?? pick(availableMaps)
+  );
 }
 
 export function simulateVeto(teamAInput, teamBInput, format) {
@@ -1234,9 +1302,12 @@ export function simulateVeto(teamAInput, teamBInput, format) {
   const teamB = normalizeTeam(teamBInput);
   const availableMaps = [...MAP_POOL];
   const steps = [];
+  let stepNumber = 0;
 
   const ban = (teamKey, team) => {
-    const map = pickWorstAvailable(team, availableMaps);
+    stepNumber += 1;
+    const opponent = teamKey === "teamA" ? teamB : teamA;
+    const map = chooseVetoMap(team, opponent, availableMaps, "ban", stepNumber);
     availableMaps.splice(availableMaps.indexOf(map), 1);
     steps.push({
       id: uid("veto"),
@@ -1250,7 +1321,9 @@ export function simulateVeto(teamAInput, teamBInput, format) {
   };
 
   const pickMap = (teamKey, team) => {
-    const map = pickBestAvailable(team, availableMaps);
+    stepNumber += 1;
+    const opponent = teamKey === "teamA" ? teamB : teamA;
+    const map = chooseVetoMap(team, opponent, availableMaps, "pick", stepNumber);
     availableMaps.splice(availableMaps.indexOf(map), 1);
     steps.push({
       id: uid("veto"),
