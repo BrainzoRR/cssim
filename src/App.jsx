@@ -375,6 +375,8 @@ const RADAR_ZONE_POSITIONS = {
   },
 };
 
+const RADAR_BOUNDS_CACHE = new Map();
+
 function useI18n() {
   const context = useContext(LanguageContext);
   if (!context) {
@@ -1299,6 +1301,99 @@ function useIsLandscape(enabled = true) {
   }, [enabled]);
 
   return isLandscape;
+}
+
+function useRadarBounds(src) {
+  const [bounds, setBounds] = useState(() =>
+    RADAR_BOUNDS_CACHE.get(src) ?? { left: 0, top: 0, width: 1, height: 1, ready: false }
+  );
+
+  useEffect(() => {
+    if (!src || typeof window === "undefined") {
+      return undefined;
+    }
+
+    if (RADAR_BOUNDS_CACHE.has(src)) {
+      setBounds(RADAR_BOUNDS_CACHE.get(src));
+      return undefined;
+    }
+
+    let cancelled = false;
+    const image = new window.Image();
+    image.decoding = "async";
+
+    image.onload = () => {
+      if (cancelled) {
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth || image.width;
+      canvas.height = image.naturalHeight || image.height;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+
+      if (!context || !canvas.width || !canvas.height) {
+        const fallback = { left: 0, top: 0, width: 1, height: 1, ready: true };
+        RADAR_BOUNDS_CACHE.set(src, fallback);
+        setBounds(fallback);
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+      let left = canvas.width;
+      let right = 0;
+      let top = canvas.height;
+      let bottom = 0;
+      let found = false;
+
+      for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          const index = (y * canvas.width + x) * 4;
+          const alpha = data[index + 3];
+          const brightness = data[index] + data[index + 1] + data[index + 2];
+
+          if (alpha > 8 && brightness > 28) {
+            found = true;
+            left = Math.min(left, x);
+            right = Math.max(right, x);
+            top = Math.min(top, y);
+            bottom = Math.max(bottom, y);
+          }
+        }
+      }
+
+      const nextBounds = found
+        ? {
+            left: left / canvas.width,
+            top: top / canvas.height,
+            width: (right - left + 1) / canvas.width,
+            height: (bottom - top + 1) / canvas.height,
+            ready: true,
+          }
+        : { left: 0, top: 0, width: 1, height: 1, ready: true };
+
+      RADAR_BOUNDS_CACHE.set(src, nextBounds);
+      setBounds(nextBounds);
+    };
+
+    image.onerror = () => {
+      if (cancelled) {
+        return;
+      }
+      const fallback = { left: 0, top: 0, width: 1, height: 1, ready: true };
+      RADAR_BOUNDS_CACHE.set(src, fallback);
+      setBounds(fallback);
+    };
+
+    image.src = src;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return bounds;
 }
 
 function Panel({ title, subtitle, action, children, className = "" }) {
@@ -2755,7 +2850,7 @@ function LiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_270px] gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_340px] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -2902,7 +2997,7 @@ function LiveMatchView({
               </div>
             </Panel>
           </div>
-          <div className="grid min-h-0 grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-3 overflow-hidden">
+          <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)] gap-3 overflow-hidden">
             <Panel title="Radar" subtitle="Death markers stay on the map for the whole round." className="overflow-hidden p-3">
               <div className="mb-3 flex justify-end">
                 <button
@@ -2918,6 +3013,7 @@ function LiveMatchView({
                 markers={radarMarkers}
                 latestMarker={latestRadarMarker}
                 sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+                showSidebar={false}
               />
             </Panel>
             <Panel title={t("economy_graph")} subtitle="Equipment value by round." className="overflow-hidden p-3">
@@ -3775,10 +3871,20 @@ function LeaderCard({ title, nickname, rating, side }) {
   );
 }
 
-function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = false, expanded = false }) {
+function RadarPanel({
+  mapName,
+  markers,
+  latestMarker,
+  sideLookup,
+  compact = false,
+  expanded = false,
+  showSidebar = !compact,
+}) {
   const assets = RADAR_ASSETS[mapName];
   const upperMarkers = markers.filter((marker) => marker.level !== "lower");
   const lowerMarkers = markers.filter((marker) => marker.level === "lower");
+  const upperBounds = useRadarBounds(assets?.upper);
+  const lowerBounds = useRadarBounds(assets?.lower);
 
   if (!assets?.upper) {
     return (
@@ -3789,17 +3895,23 @@ function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = fals
   }
 
   return (
-    <div className={classNames("grid h-full min-h-0 gap-3", compact ? "grid-cols-1" : expanded ? "grid-cols-[minmax(0,1fr)_260px]" : "grid-cols-[minmax(0,1fr)_176px]")}>
+    <div
+      className={classNames(
+        "grid h-full min-h-0 gap-3",
+        compact || !showSidebar ? "grid-cols-1" : expanded ? "grid-cols-[minmax(0,1fr)_260px]" : "grid-cols-[minmax(0,1fr)_176px]"
+      )}
+    >
       <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#050608] p-3">
         <div className={classNames("relative aspect-square w-full", expanded ? "max-h-[78vh]" : "h-full")}>
           <img src={assets.upper} alt={`${mapName} radar`} className="absolute inset-0 h-full w-full object-fill" draggable="false" />
-          {upperMarkers.map((marker) => (
+          {upperBounds.ready && upperMarkers.map((marker) => (
             <RadarDeathMarker
               key={marker.id}
               marker={marker}
               victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
               compact={compact}
               expanded={expanded}
+              bounds={upperBounds}
             />
           ))}
           <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
@@ -3808,13 +3920,14 @@ function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = fals
           {assets.lower && (
             <div className={classNames("absolute overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl", expanded ? "bottom-4 right-4 h-[38%] w-[38%]" : "bottom-3 right-3 h-[42%] w-[42%]")}>
               <img src={assets.lower} alt={`${mapName} lower radar`} className="absolute inset-0 h-full w-full object-fill" draggable="false" />
-              {lowerMarkers.map((marker) => (
+              {lowerBounds.ready && lowerMarkers.map((marker) => (
                 <RadarDeathMarker
                   key={marker.id}
                   marker={marker}
                   victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
                   compact
                   expanded={expanded}
+                  bounds={lowerBounds}
                 />
               ))}
               <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-border bg-surface/80 px-2 py-0.5 text-[9px] uppercase tracking-[0.18em] text-muted">
@@ -3822,9 +3935,20 @@ function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = fals
               </div>
             </div>
           )}
+          {!showSidebar && (
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-2xl border border-border bg-surface/85 px-3 py-2 backdrop-blur-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Last Frag</div>
+                <div className="numbers text-xs text-accent">{latestMarker?.clock ?? "Waiting"}</div>
+              </div>
+              <div className="mt-1 max-h-10 overflow-hidden text-xs leading-5 text-text">
+                {latestMarker?.label ?? "Kill markers will stay on the radar during live playback."}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      {!compact && (
+      {!compact && showSidebar && (
       <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
         <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
           <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Last Frag</div>
@@ -3869,18 +3993,21 @@ function RadarPanel({ mapName, markers, latestMarker, sideLookup, compact = fals
   );
 }
 
-function RadarDeathMarker({ marker, victimSide, compact = false, expanded = false }) {
+function RadarDeathMarker({ marker, victimSide, compact = false, expanded = false, bounds }) {
   const victimTone =
     victimSide === "CT"
       ? "text-sky-300 drop-shadow-[0_0_10px_rgba(91,141,217,0.75)]"
       : "text-accent drop-shadow-[0_0_10px_rgba(245,166,35,0.75)]";
+  const resolvedBounds = bounds?.ready ? bounds : { left: 0, top: 0, width: 1, height: 1 };
+  const left = (resolvedBounds.left + clamp(marker.x, 0, 1) * resolvedBounds.width) * 100;
+  const top = (resolvedBounds.top + clamp(marker.y, 0, 1) * resolvedBounds.height) * 100;
 
   return (
     <div
       className="pointer-events-none absolute"
       style={{
-        left: `${clamp(marker.x, 0.04, 0.96) * 100}%`,
-        top: `${clamp(marker.y, 0.04, 0.96) * 100}%`,
+        left: `${clamp(left / 100, 0.02, 0.98) * 100}%`,
+        top: `${clamp(top / 100, 0.02, 0.98) * 100}%`,
         transform: "translate(-50%, -50%)",
       }}
       title={marker.label}
@@ -3904,7 +4031,7 @@ function RadarDeathMarker({ marker, victimSide, compact = false, expanded = fals
 function RadarExpandedModal({ mapName, markers, latestMarker, sideLookup, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-md">
-      <div className="panel flex h-[88vh] w-[min(1360px,94vw)] flex-col rounded-3xl p-5">
+      <div className="panel flex h-[92vh] w-[min(1520px,96vw)] flex-col rounded-3xl p-5">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-[0.22em] text-accent">Expanded Radar</div>
