@@ -272,13 +272,25 @@ function loadStoredSnapshot() {
   };
 
   if (typeof window === "undefined") {
-    return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null, language: "en" };
+    return {
+      state: baseState,
+      setup: defaultSetup(fallback.teams),
+      lastSavedAt: null,
+      language: "en",
+      liveLayoutMode: "broadcast",
+    };
   }
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null, language: "en" };
+      return {
+        state: baseState,
+        setup: defaultSetup(fallback.teams),
+        lastSavedAt: null,
+        language: "en",
+        liveLayoutMode: "broadcast",
+      };
     }
 
     const parsed = JSON.parse(raw);
@@ -300,9 +312,16 @@ function loadStoredSnapshot() {
       setup: parsed.matchSetup ?? defaultSetup(teams),
       lastSavedAt: parsed.lastSavedAt ?? null,
       language: parsed.language ?? "en",
+      liveLayoutMode: parsed.liveLayoutMode ?? "broadcast",
     };
   } catch {
-    return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null, language: "en" };
+    return {
+      state: baseState,
+      setup: defaultSetup(fallback.teams),
+      lastSavedAt: null,
+      language: "en",
+      liveLayoutMode: "broadcast",
+    };
   }
 }
 
@@ -439,6 +458,7 @@ function App() {
   const [matchSetup, setMatchSetup] = useState(initialSnapshot.setup);
   const [lastSavedAt, setLastSavedAt] = useState(initialSnapshot.lastSavedAt);
   const [language, setLanguage] = useState(initialSnapshot.language ?? "en");
+  const [liveLayoutMode, setLiveLayoutMode] = useState(initialSnapshot.liveLayoutMode ?? "broadcast");
   const [teamDraft, setTeamDraft] = useState(
     deepClone(state.teams.find((team) => team.id === state.selectedTeamId) ?? createBlankTeam())
   );
@@ -502,11 +522,12 @@ function App() {
       state,
       matchSetup,
       language,
+      liveLayoutMode,
       lastSavedAt: new Date().toISOString(),
     });
     window.localStorage.setItem(STORAGE_KEY, serialized);
     setLastSavedAt(JSON.parse(serialized).lastSavedAt);
-  }, [state, matchSetup, language]);
+  }, [state, matchSetup, language, liveLayoutMode]);
 
   useEffect(() => {
     if (!state.currentMatch || state.currentMatch.status !== "veto" || state.activeView !== "veto") {
@@ -734,6 +755,8 @@ function App() {
               <LiveMatchView
                 match={state.currentMatch}
                 roundProgress={roundProgress}
+                layoutMode={liveLayoutMode}
+                onLayoutModeChange={setLiveLayoutMode}
                 resultsFallback={state.resultsData}
               />
             )}
@@ -867,21 +890,21 @@ function TopNav({ activeView, onNavigate }) {
   };
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/80 backdrop-blur-md">
-      <div className="mx-auto flex w-[min(1600px,95vw)] items-center justify-between gap-6 px-4 py-4">
+      <div className="mx-auto flex w-[min(1600px,98vw)] items-center justify-between gap-4 px-3 py-3 sm:px-4 sm:py-4">
         <div>
-          <div className="font-display text-xs uppercase tracking-[0.35em] text-accent">{t("app_title")}</div>
-          <div className="font-display text-2xl font-semibold text-text">{t("app_tagline")}</div>
+          <div className="font-display text-[10px] uppercase tracking-[0.3em] text-accent sm:text-xs sm:tracking-[0.35em]">{t("app_title")}</div>
+          <div className="font-display text-lg font-semibold text-text sm:text-2xl">{t("app_tagline")}</div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
-            <span className="px-2 text-xs uppercase tracking-[0.2em] text-muted">{t("language")}</span>
+            <span className="hidden px-2 text-xs uppercase tracking-[0.2em] text-muted sm:inline">{t("language")}</span>
             {["en", "ru"].map((lang) => (
               <button
                 key={lang}
                 type="button"
                 onClick={() => setLanguage(lang)}
                 className={classNames(
-                  "rounded-lg px-3 py-1 text-xs uppercase tracking-[0.18em]",
+                  "rounded-lg px-2.5 py-1 text-xs uppercase tracking-[0.18em] sm:px-3",
                   language === lang ? "bg-accent/15 text-accent" : "text-muted"
                 )}
               >
@@ -889,7 +912,7 @@ function TopNav({ activeView, onNavigate }) {
               </button>
             ))}
           </div>
-          <nav className="flex flex-wrap items-center gap-2">
+          <nav className="flex min-w-0 items-center gap-2 overflow-x-auto">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = activeView === item.id;
@@ -899,14 +922,14 @@ function TopNav({ activeView, onNavigate }) {
                 type="button"
                 onClick={() => onNavigate(item.id)}
                 className={classNames(
-                  "flex items-center gap-2 rounded-xl border px-4 py-2 text-sm transition",
+                  "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition sm:px-4",
                   active
                     ? "border-accent bg-accent/10 text-accent shadow-glow"
                     : "border-border bg-card/70 text-muted hover:border-accent/50 hover:text-text"
                 )}
               >
                 <Icon size={16} />
-                <span className="font-display text-lg">{navLabels[item.id] ?? item.label}</span>
+                <span className="hidden font-display text-lg md:inline">{navLabels[item.id] ?? item.label}</span>
               </button>
             );
           })}
@@ -2036,7 +2059,7 @@ function reasonLabel(reason) {
   return "Elimination";
 }
 
-function LiveMatchView({ match, roundProgress }) {
+function LiveMatchView({ match, roundProgress, layoutMode = "broadcast", onLayoutModeChange }) {
   const { t } = useI18n();
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
   const latestRound = activeMap.lastRoundSummary;
@@ -2050,6 +2073,24 @@ function LiveMatchView({ match, roundProgress }) {
     label: entry.label,
   }));
 
+  if (layoutMode === "phone") {
+    return (
+      <PhoneLandscapeLiveMatchView
+        match={match}
+        activeMap={activeMap}
+        latestRound={latestRound}
+        teamAPlayers={teamAPlayers}
+        teamBPlayers={teamBPlayers}
+        teamAState={teamAState}
+        teamBState={teamBState}
+        roundClock={roundClock}
+        roundProgress={roundProgress}
+        layoutMode={layoutMode}
+        onLayoutModeChange={onLayoutModeChange}
+      />
+    );
+  }
+
   return (
     <div className="grid h-[calc(100vh-102px)] min-h-0 grid-cols-[320px_minmax(0,1fr)_320px] gap-3 overflow-hidden">
       <BroadcastTeamColumn
@@ -2061,7 +2102,12 @@ function LiveMatchView({ match, roundProgress }) {
         timeoutsRemaining={match.timeoutsRemaining.teamA}
       />
       <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
-        <Panel title={t("live_match")} subtitle="Compact fullscreen HUD with scores, sides, economy, and players." className="p-4">
+        <Panel
+          title={t("live_match")}
+          subtitle="Compact fullscreen HUD with scores, sides, economy, and players."
+          action={<LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} />}
+          className="p-4"
+        >
           <div className="rounded-2xl border border-border bg-card/70 p-4">
             <div className="flex items-center justify-between gap-6">
               <TeamHeader team={match.teamA} score={activeMap.score.teamA} side={activeMap.teamAState.side} />
@@ -2254,6 +2300,217 @@ function TeamHeader({ team, score, side, reverse = false }) {
         <div className={classNames("text-xs uppercase tracking-[0.2em]", side === "CT" ? "text-sky-300" : "text-accent")}>
           {side}-Side
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LayoutModeSwitch({ layoutMode, onChange, compact = false }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
+      {[
+        { id: "broadcast", label: compact ? "Desk" : "Broadcast" },
+        { id: "phone", label: "Phone" },
+      ].map((mode) => (
+        <button
+          key={mode.id}
+          type="button"
+          onClick={() => onChange?.(mode.id)}
+          className={classNames(
+            "rounded-lg border px-3 py-1.5 transition",
+            compact ? "text-[11px]" : "text-xs uppercase tracking-[0.16em]",
+            layoutMode === mode.id
+              ? "border-accent bg-accent/10 text-accent"
+              : "border-transparent text-muted hover:text-text"
+          )}
+        >
+          {mode.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PhoneLandscapeLiveMatchView({
+  match,
+  activeMap,
+  latestRound,
+  teamAPlayers,
+  teamBPlayers,
+  teamAState,
+  teamBState,
+  roundClock,
+  roundProgress,
+  layoutMode,
+  onLayoutModeChange,
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="grid h-[calc(100dvh-98px)] min-h-0 grid-cols-[145px_minmax(0,1fr)_145px] gap-2 overflow-hidden sm:grid-cols-[168px_minmax(0,1fr)_168px]">
+      <CompactTeamColumn
+        team={match.teamA}
+        score={activeMap.score.teamA}
+        side={teamAState.side}
+        players={teamAPlayers}
+      />
+      <div className="grid min-h-0 grid-rows-[102px_minmax(0,1fr)] gap-2 overflow-hidden">
+        <Panel
+          title={`${t("live_match")} · Phone`}
+          subtitle="Landscape phone HUD."
+          action={<LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact />}
+          className="overflow-hidden p-2.5"
+        >
+          <div className="rounded-2xl border border-border bg-card/70 px-4 py-3">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              <div>
+                <div className="font-display text-2xl text-text">{match.teamA.tag}</div>
+                <div className="numbers text-3xl text-accent">{activeMap.score.teamA}</div>
+              </div>
+              <div className="text-center">
+                <div className="font-display text-2xl text-accent">{activeMap.mapName}</div>
+                <div className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-muted">
+                  {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {activeMap.overtimeNumber ? `OT ${activeMap.overtimeNumber}` : "Reg"}
+                </div>
+                <div className={classNames("mt-1 numbers text-lg", roundClock <= 10 ? "text-red-400" : "text-text")}>
+                  {Math.floor(roundClock / 60)}:{String(roundClock % 60).padStart(2, "0")}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-display text-2xl text-text">{match.teamB.tag}</div>
+                <div className="numbers text-3xl text-sky-300">{activeMap.score.teamB}</div>
+              </div>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface">
+              <div
+                className={classNames("h-full rounded-full transition-all", roundClock <= 10 ? "bg-red-500" : "bg-accent")}
+                style={{ width: `${Math.max(4, roundProgress * 100)}%` }}
+              />
+            </div>
+          </div>
+        </Panel>
+        <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_190px] gap-2 overflow-hidden sm:grid-cols-[minmax(0,1fr)_220px]">
+          <Panel title={t("round_hud")} subtitle="Core round context." className="min-h-0 overflow-hidden p-2.5">
+            {latestRound ? (
+              <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-2">
+                <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-display text-2xl text-text">{latestRound.strategy}</div>
+                      <div className="text-xs text-muted">
+                        {latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by {reasonLabel(latestRound.reason)}
+                      </div>
+                    </div>
+                    <div className="rounded-full border border-border px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-muted">
+                      {latestRound.displayRound}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-border bg-surface/80 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{match.teamA.tag}</div>
+                    <div className="mt-1 text-xs text-text">{roundTypeLabel(latestRound.roundType.teamA)}</div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-surface/80 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{match.teamB.tag}</div>
+                    <div className="mt-1 text-xs text-text">{roundTypeLabel(latestRound.roundType.teamB)}</div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-surface/80 px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted">Bomb</div>
+                    <div className="mt-1 text-xs text-text">{latestRound.bombPlanted ? latestRound.plantSite ?? "Planted" : "No plant"}</div>
+                  </div>
+                </div>
+                <div className="grid min-h-0 grid-cols-2 gap-2">
+                  <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted">Top {match.teamA.tag}</div>
+                    <div className="mt-1 font-display text-xl text-text">{latestRound.spectatorLeaders.teamA.nickname}</div>
+                    <div className="numbers text-sm text-accent">{latestRound.spectatorLeaders.teamA.rating}</div>
+                    <div className="mt-2 numbers text-xs text-muted">{formatMoney(latestRound.economy.teamATotalMoney)}</div>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted">Top {match.teamB.tag}</div>
+                    <div className="mt-1 font-display text-xl text-text">{latestRound.spectatorLeaders.teamB.nickname}</div>
+                    <div className="numbers text-sm text-sky-300">{latestRound.spectatorLeaders.teamB.rating}</div>
+                    <div className="mt-2 numbers text-xs text-muted">{formatMoney(latestRound.economy.teamBTotalMoney)}</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-border px-4 text-center text-xs text-muted">
+                Waiting for the first round.
+              </div>
+            )}
+          </Panel>
+          <Panel title={t("live_feed")} subtitle="Recent calls." className="flex min-h-0 flex-col overflow-hidden p-2.5">
+            <div className="scrollbar-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+              {activeMap.allLogs.slice(0, 8).map((log) => (
+                <div key={log.id} className="rounded-xl border border-border bg-card/60 px-2.5 py-2">
+                  <div className="numbers text-[10px] text-accent">[{log.clock}] {`R${log.roundNumber}`}</div>
+                  <div className="mt-1 text-[11px] leading-4 text-text">{log.label}</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
+      </div>
+      <CompactTeamColumn
+        team={match.teamB}
+        score={activeMap.score.teamB}
+        side={teamBState.side}
+        players={teamBPlayers}
+        reverse
+      />
+    </div>
+  );
+}
+
+function CompactTeamColumn({ team, score, side, players, reverse = false }) {
+  const tone = sideToneClasses(side);
+
+  return (
+    <section className="panel page-enter grid h-full min-h-0 grid-rows-[54px_repeat(5,minmax(0,1fr))] gap-1.5 rounded-2xl p-2">
+      <div className={classNames("flex items-center justify-between rounded-xl border px-2.5 py-2", tone.border, tone.bg, reverse && "flex-row-reverse text-right")}>
+        <div className="min-w-0">
+          <div className="truncate font-display text-xl text-text">{team.tag}</div>
+          <div className={classNames("text-[10px] uppercase tracking-[0.16em]", tone.text)}>{side}</div>
+        </div>
+        <div className="numbers text-3xl text-text">{score}</div>
+      </div>
+      {players.map((player) => (
+        <CompactTeamPlayerCard key={player.id} player={player} side={side} reverse={reverse} />
+      ))}
+    </section>
+  );
+}
+
+function CompactTeamPlayerCard({ player, side, reverse = false }) {
+  const tone = sideToneClasses(side);
+
+  return (
+    <div className={classNames("rounded-xl border px-2 py-1.5", player.alive ? tone.border : "border-border bg-surface/60 opacity-70")}>
+      <div className={classNames("flex items-center justify-between gap-1", reverse && "flex-row-reverse text-right")}>
+        <div className="min-w-0">
+          <div className="truncate font-display text-sm text-text">{player.nickname}</div>
+          <div className="numbers text-[10px] text-muted">
+            {player.kills}/{player.deaths}/{player.assists}
+          </div>
+        </div>
+        <div className={classNames("rounded-md px-1.5 py-0.5 text-[10px] font-semibold", weaponBadgeClasses(player.weaponType))}>
+          [{player.weaponLabel}]
+        </div>
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface">
+        <div
+          className={classNames("h-full rounded-full", tone.bar)}
+          style={{ width: `${player.alive ? player.hp : 0}%` }}
+        />
+      </div>
+      <div className={classNames("mt-1 flex items-center justify-between text-[10px]", reverse && "flex-row-reverse")}>
+        <span className="text-muted">{player.alive ? `${player.hp} HP` : "OUT"}</span>
+        <span className="text-muted">U {player.utilityCount}</span>
+        <span style={{ color: getRatingColor(player.rating) }} className="numbers">
+          {player.rating}
+        </span>
       </div>
     </div>
   );
