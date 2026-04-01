@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -75,6 +75,117 @@ const NAV_ITEMS = [
   { id: "history", label: "History", icon: History },
 ];
 
+const LanguageContext = createContext(null);
+
+const COPY = {
+  en: {
+    nav_home: "Home",
+    nav_teams: "Teams",
+    nav_match_setup: "Match Setup",
+    nav_live: "Live Match",
+    nav_results: "Results",
+    nav_history: "History",
+    app_title: "CS2 Pro Match Simulator",
+    app_tagline: "Dark server room. Full series control.",
+    language: "Language",
+    last_saved: "Last saved",
+    not_saved: "Not saved yet",
+    export_all_data: "Export All Data",
+    import_data: "Import Data",
+    dashboard: "Dashboard",
+    quick_start: "Quick Start",
+    top_teams: "Top Teams",
+    recent_results: "Recent Results",
+    open_team_manager: "Open Team Manager",
+    open_history: "Open History",
+    team_manager: "Team Manager",
+    new_team: "New Team",
+    save_team: "Save Team",
+    delete_team: "Delete",
+    match_setup: "Match Setup",
+    start_veto: "Start Veto",
+    series_rules: "Series Rules",
+    checklist: "Checklist",
+    veto_screen: "Veto Screen",
+    series_order: "Series Order",
+    round_history: "Round History",
+    live_match: "Live Match",
+    round_hud: "Round HUD",
+    live_feed: "Live Feed",
+    economy_graph: "Economy Graph",
+    series_results: "Series Results",
+    highlights: "Highlights",
+    map_breakdown: "Map Breakdown",
+    full_player_stats: "Full Player Stats",
+    history: "History",
+    clear_history: "Clear History",
+    filter_by_team: "Filter by team",
+    combined: "Combined",
+    by_team: "By Team",
+    player: "Player",
+    team: "Team",
+    rating: "Rating",
+    open_team_manager_short: "Open Team Manager",
+  },
+  ru: {
+    nav_home: "Главная",
+    nav_teams: "Команды",
+    nav_match_setup: "Настройка матча",
+    nav_live: "Live матч",
+    nav_results: "Результаты",
+    nav_history: "История",
+    app_title: "CS2 Pro Match Simulator",
+    app_tagline: "Темная серверная. Полный контроль серии.",
+    language: "Язык",
+    last_saved: "Последнее сохранение",
+    not_saved: "Еще не сохранено",
+    export_all_data: "Экспортировать все данные",
+    import_data: "Импортировать данные",
+    dashboard: "Дашборд",
+    quick_start: "Быстрый старт",
+    top_teams: "Топ команд",
+    recent_results: "Последние результаты",
+    open_team_manager: "Открыть менеджер команд",
+    open_history: "Открыть историю",
+    team_manager: "Менеджер команд",
+    new_team: "Новая команда",
+    save_team: "Сохранить команду",
+    delete_team: "Удалить",
+    match_setup: "Настройка матча",
+    start_veto: "Начать veto",
+    series_rules: "Правила серии",
+    checklist: "Чеклист",
+    veto_screen: "Экран veto",
+    series_order: "Порядок карт",
+    round_history: "История раундов",
+    live_match: "Live матч",
+    round_hud: "HUD раунда",
+    live_feed: "Live лента",
+    economy_graph: "График экономики",
+    series_results: "Итоги серии",
+    highlights: "Хайлайты",
+    map_breakdown: "Разбор карт",
+    full_player_stats: "Полная статистика игроков",
+    history: "История",
+    clear_history: "Очистить историю",
+    filter_by_team: "Фильтр по команде",
+    combined: "Все вместе",
+    by_team: "По командам",
+    player: "Игрок",
+    team: "Команда",
+    rating: "Рейтинг",
+    open_team_manager_short: "Менеджер команд",
+  },
+};
+
+function useI18n() {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error("LanguageContext is missing");
+  }
+  return context;
+}
+
 function defaultSetup(teams) {
   return {
     teamAId: teams[0]?.id ?? "",
@@ -97,13 +208,13 @@ function loadStoredSnapshot() {
   };
 
   if (typeof window === "undefined") {
-    return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null };
+    return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null, language: "en" };
   }
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null };
+      return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null, language: "en" };
     }
 
     const parsed = JSON.parse(raw);
@@ -120,9 +231,10 @@ function loadStoredSnapshot() {
       },
       setup: parsed.matchSetup ?? defaultSetup(teams),
       lastSavedAt: parsed.lastSavedAt ?? null,
+      language: parsed.language ?? "en",
     };
   } catch {
-    return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null };
+    return { state: baseState, setup: defaultSetup(fallback.teams), lastSavedAt: null, language: "en" };
   }
 }
 
@@ -258,6 +370,7 @@ function App() {
   const [state, dispatch] = useReducer(appReducer, initialSnapshot.state);
   const [matchSetup, setMatchSetup] = useState(initialSnapshot.setup);
   const [lastSavedAt, setLastSavedAt] = useState(initialSnapshot.lastSavedAt);
+  const [language, setLanguage] = useState(initialSnapshot.language ?? "en");
   const [teamDraft, setTeamDraft] = useState(
     deepClone(state.teams.find((team) => team.id === state.selectedTeamId) ?? createBlankTeam())
   );
@@ -273,6 +386,7 @@ function App() {
   const roundIntervalRef = useRef(null);
   const progressIntervalRef = useRef(null);
   const roundStartedAtRef = useRef(Date.now());
+  const t = (key) => COPY[language]?.[key] ?? COPY.en[key] ?? key;
 
   const pushToast = (message, tone = "success") => {
     const id = `${Date.now()}_${Math.random()}`;
@@ -319,11 +433,12 @@ function App() {
     const serialized = JSON.stringify({
       state,
       matchSetup,
+      language,
       lastSavedAt: new Date().toISOString(),
     });
     window.localStorage.setItem(STORAGE_KEY, serialized);
     setLastSavedAt(JSON.parse(serialized).lastSavedAt);
-  }, [state, matchSetup]);
+  }, [state, matchSetup, language]);
 
   useEffect(() => {
     if (!state.currentMatch || state.currentMatch.status !== "veto" || state.activeView !== "veto") {
@@ -477,16 +592,26 @@ function App() {
     }
   };
 
-  return <div className="min-h-screen text-text">{renderApp()}</div>;
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      <div className="min-h-screen text-text">{renderApp()}</div>
+    </LanguageContext.Provider>
+  );
 
   function renderApp() {
+    const liveFocus = state.activeView === "live" && state.currentMatch;
     return (
       <div className="min-h-screen bg-hero-grid bg-hero-grid">
         <TopNav
           activeView={state.activeView}
           onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
         />
-        <div className="mx-auto flex w-[min(1600px,95vw)] gap-6 px-4 py-6">
+        <div
+          className={classNames(
+            "mx-auto flex gap-6",
+            liveFocus ? "w-[min(1840px,99vw)] px-3 py-3" : "w-[min(1600px,95vw)] px-4 py-6"
+          )}
+        >
           <div className="flex-1">
             {state.activeView === "home" && (
               <HomeView
@@ -565,7 +690,7 @@ function App() {
               />
             )}
           </div>
-          <aside className="hidden w-[300px] xl:block">
+          <aside className={classNames("hidden w-[300px] xl:block", liveFocus && "xl:hidden")}>
             <SideRail
               selectedTeam={selectedTeam}
               currentMatch={state.currentMatch}
@@ -575,9 +700,11 @@ function App() {
             />
           </aside>
         </div>
-        <footer className="border-t border-border bg-surface/80 px-6 py-3 text-sm text-muted">
-          Last saved: {lastSavedAt ? new Date(lastSavedAt).toLocaleString() : "Not saved yet"}
-        </footer>
+        {!liveFocus && (
+          <footer className="border-t border-border bg-surface/80 px-6 py-3 text-sm text-muted">
+            {t("last_saved")}: {lastSavedAt ? new Date(lastSavedAt).toLocaleString() : t("not_saved")}
+          </footer>
+        )}
         <input
           ref={importInputRef}
           type="file"
@@ -627,7 +754,7 @@ function App() {
 
 export default App;
 
-function renderLogo(logo, fallback = "🎯") {
+function renderLogo(logo, fallback = "T") {
   if (!logo) {
     return <span className="text-2xl">{fallback}</span>;
   }
@@ -661,14 +788,40 @@ function Panel({ title, subtitle, action, children, className = "" }) {
 }
 
 function TopNav({ activeView, onNavigate }) {
+  const { language, setLanguage, t } = useI18n();
+  const navLabels = {
+    home: t("nav_home"),
+    teams: t("nav_teams"),
+    "match-setup": t("nav_match_setup"),
+    live: t("nav_live"),
+    results: t("nav_results"),
+    history: t("nav_history"),
+  };
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/80 backdrop-blur-md">
       <div className="mx-auto flex w-[min(1600px,95vw)] items-center justify-between gap-6 px-4 py-4">
         <div>
-          <div className="font-display text-xs uppercase tracking-[0.35em] text-accent">CS2 Pro Match Simulator</div>
-          <div className="font-display text-2xl font-semibold text-text">Dark server room. Full series control.</div>
+          <div className="font-display text-xs uppercase tracking-[0.35em] text-accent">{t("app_title")}</div>
+          <div className="font-display text-2xl font-semibold text-text">{t("app_tagline")}</div>
         </div>
-        <nav className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
+            <span className="px-2 text-xs uppercase tracking-[0.2em] text-muted">{t("language")}</span>
+            {["en", "ru"].map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => setLanguage(lang)}
+                className={classNames(
+                  "rounded-lg px-3 py-1 text-xs uppercase tracking-[0.18em]",
+                  language === lang ? "bg-accent/15 text-accent" : "text-muted"
+                )}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+          <nav className="flex flex-wrap items-center gap-2">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = activeView === item.id;
@@ -685,11 +838,12 @@ function TopNav({ activeView, onNavigate }) {
                 )}
               >
                 <Icon size={16} />
-                <span className="font-display text-lg">{item.label}</span>
+                <span className="font-display text-lg">{navLabels[item.id] ?? item.label}</span>
               </button>
             );
           })}
-        </nav>
+          </nav>
+        </div>
       </div>
     </header>
   );
@@ -717,11 +871,12 @@ function MetricCard({ icon: Icon, label, value, tone = "default" }) {
 }
 
 function HomeView({ teams, history, onQuickStart, onOpenTeams, onOpenHistory }) {
+  const { t } = useI18n();
   const topTeams = [...teams].sort((left, right) => getTeamStrength(right) - getTeamStrength(left)).slice(0, 3);
   return (
     <div className="space-y-6">
       <Panel
-        title="Dashboard"
+        title={t("dashboard")}
         subtitle="Seeded teams, live match control, history replay, and full local export/import."
         action={
           <button
@@ -730,7 +885,7 @@ function HomeView({ teams, history, onQuickStart, onOpenTeams, onOpenHistory }) 
             className="flex items-center gap-2 rounded-xl border border-accent bg-accent/10 px-4 py-2 text-sm text-accent transition hover:bg-accent/15"
           >
             <Play size={16} />
-            Quick Start
+            {t("quick_start")}
           </button>
         }
       >
@@ -743,11 +898,11 @@ function HomeView({ teams, history, onQuickStart, onOpenTeams, onOpenHistory }) 
       </Panel>
       <div className="grid grid-cols-[1.3fr_0.7fr] gap-6">
         <Panel
-          title="Top Teams"
+          title={t("top_teams")}
           subtitle="Composite strength mixes player ratings with coach influence."
           action={
             <button type="button" onClick={onOpenTeams} className="text-sm text-accent hover:text-accent/80">
-              Open Team Manager
+              {t("open_team_manager_short")}
             </button>
           }
         >
@@ -777,11 +932,11 @@ function HomeView({ teams, history, onQuickStart, onOpenTeams, onOpenHistory }) 
           </div>
         </Panel>
         <Panel
-          title="Recent Results"
+          title={t("recent_results")}
           subtitle="Replay any stored series from the history tab."
           action={
             <button type="button" onClick={onOpenHistory} className="text-sm text-accent hover:text-accent/80">
-              Open History
+              {t("open_history")}
             </button>
           }
         >
@@ -807,21 +962,22 @@ function HomeView({ teams, history, onQuickStart, onOpenTeams, onOpenHistory }) 
 }
 
 function SideRail({ selectedTeam, currentMatch, lastSavedAt, onExport, onImport }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
       <Panel title="Control Rail" subtitle="Fast access to save, export, import, and current live status.">
         <div className="space-y-3">
           <button type="button" onClick={onExport} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-4 py-3 text-sm text-text hover:border-accent/40">
             <Download size={16} />
-            Export All Data
+            {t("export_all_data")}
           </button>
           <button type="button" onClick={onImport} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-4 py-3 text-sm text-text hover:border-accent/40">
             <Upload size={16} />
-            Import Data
+            {t("import_data")}
           </button>
           <div className="rounded-xl border border-border bg-surface/80 p-4 text-sm text-muted">
             <div className="mb-1 uppercase tracking-[0.2em] text-xs">Autosave</div>
-            <div>{lastSavedAt ? new Date(lastSavedAt).toLocaleString() : "Not saved yet"}</div>
+            <div>{lastSavedAt ? new Date(lastSavedAt).toLocaleString() : t("not_saved")}</div>
           </div>
         </div>
       </Panel>
@@ -1180,6 +1336,7 @@ function TeamsView({
   onExport,
   onImport,
 }) {
+  const { t } = useI18n();
   const logoInputRef = useRef(null);
   const rosterWarning = teamDraft.players.length !== 5 ? "Teams must have exactly 5 players to enter match setup." : null;
 
@@ -1213,7 +1370,7 @@ function TeamsView({
   return (
     <div className="grid grid-cols-[320px_1fr] gap-6">
       <Panel
-        title="Team Manager"
+        title={t("team_manager")}
         subtitle="Create, edit, and tune rosters, coaches, captains, and map pools."
         className="h-fit"
         action={
@@ -1223,7 +1380,7 @@ function TeamsView({
             className="flex items-center gap-2 rounded-xl border border-accent bg-accent/10 px-3 py-2 text-sm text-accent"
           >
             <Plus size={16} />
-            New Team
+            {t("new_team")}
           </button>
         }
       >
@@ -1273,12 +1430,12 @@ function TeamsView({
             <div className="flex gap-2">
               <button type="button" onClick={onSaveTeam} className="flex items-center gap-2 rounded-xl border border-accent bg-accent/10 px-4 py-2 text-sm text-accent">
                 <Save size={16} />
-                Save Team
+                {t("save_team")}
               </button>
               {!isNewTeam && (
                 <button type="button" onClick={onDeleteTeam} className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-300">
                   <Trash2 size={16} />
-                  Delete
+                  {t("delete_team")}
                 </button>
               )}
             </div>
@@ -1541,13 +1698,14 @@ function TeamSetupPreview({ team }) {
 }
 
 function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatch }) {
+  const { t } = useI18n();
   const teamA = teams.find((team) => team.id === setup.teamAId);
   const teamB = teams.find((team) => team.id === setup.teamBId);
 
   return (
     <div className="space-y-6">
       <Panel
-        title="Match Setup"
+        title={t("match_setup")}
         subtitle="Pick the teams, format, and speed. Veto starts from this screen."
         action={
           <button
@@ -1557,7 +1715,7 @@ function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatc
             className="flex items-center gap-2 rounded-xl border border-accent bg-accent/10 px-4 py-2 text-sm text-accent disabled:opacity-40"
           >
             <Play size={16} />
-            Start Veto
+            {t("start_veto")}
           </button>
         }
       >
@@ -1599,7 +1757,7 @@ function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatc
         </div>
       </Panel>
       <div className="grid grid-cols-[1fr_360px] gap-6">
-        <Panel title="Series Rules" subtitle="Current sim settings match the full MR15 spec, with OT and economy enabled.">
+        <Panel title={t("series_rules")} subtitle="Current sim settings match the full MR12 spec, with OT and economy enabled.">
           <div className="grid grid-cols-3 gap-4">
             <div>
               <div className="mb-2 text-xs uppercase tracking-[0.2em] text-muted">Format</div>
@@ -1669,7 +1827,7 @@ function MatchSetupView({ teams, setup, onSetupChange, onStartVeto, canStartMatc
             ))}
           </div>
         </Panel>
-        <Panel title="Checklist" subtitle="The series is ready when both teams have legal five-player rosters.">
+        <Panel title={t("checklist")} subtitle="The series is ready when both teams have legal five-player rosters.">
           <div className="space-y-3 text-sm">
             <ChecklistRow label="Different teams selected" passed={setup.teamAId !== setup.teamBId} />
             <ChecklistRow label="Team A has 5 players" passed={teamA?.players.length === 5} />
@@ -1700,10 +1858,11 @@ function ChecklistRow({ label, passed }) {
 }
 
 function VetoView({ match, revealedCount }) {
+  const { t } = useI18n();
   const revealed = match.veto.steps.slice(0, revealedCount);
   return (
     <div className="space-y-6">
-      <Panel title="Veto Screen" subtitle="Cards reveal in sequence with weighted bans, picks, and the decider map.">
+      <Panel title={t("veto_screen")} subtitle="Cards reveal in sequence with weighted bans, picks, and the decider map.">
         <div className="mb-5 flex items-center justify-between rounded-2xl border border-border bg-card/70 p-5">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-surface">{renderLogo(match.teamA.logo)}</div>
@@ -1745,7 +1904,7 @@ function VetoView({ match, revealedCount }) {
           ))}
         </div>
       </Panel>
-      <Panel title="Series Order" subtitle="Starting sides come from the weighted knife round / side-choice model.">
+      <Panel title={t("series_order")} subtitle="Starting sides come from the weighted knife round / side-choice model.">
         <div className="grid grid-cols-3 gap-4">
           {match.maps.map((map) => (
             <div key={map.id} className="rounded-2xl border border-border bg-card/70 p-4">
@@ -1801,6 +1960,7 @@ function reasonLabel(reason) {
 }
 
 function LiveMatchView({ match, roundProgress }) {
+  const { t } = useI18n();
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
   const latestRound = activeMap.lastRoundSummary;
   const teamAPlayers = latestRound?.loadouts.teamA ?? liveRowsFromTeam(activeMap.teamAState);
@@ -1812,47 +1972,47 @@ function LiveMatchView({ match, roundProgress }) {
   }));
 
   return (
-    <div className="grid grid-cols-[320px_1fr] gap-6">
-      <Panel title="Round History" subtitle="Sidebar timeline follows every round, its economy type, and bomb status." className="h-fit">
-        <div className="scrollbar-thin max-h-[920px] space-y-3 overflow-y-auto pr-2">
+    <div className="grid h-[calc(100vh-108px)] grid-cols-[250px_1fr_330px] gap-4 overflow-hidden">
+      <Panel title={t("round_history")} subtitle="Compact sidebar timeline for every round." className="flex h-full flex-col overflow-hidden p-4">
+        <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {[...activeMap.rounds].reverse().map((roundSummary) => (
             <div
               key={`${roundSummary.roundNumber}_${roundSummary.mapName}`}
               className={classNames(
-                "rounded-2xl border p-4",
+                "rounded-xl border p-3",
                 roundSummary.winnerSide === "CT"
                   ? "border-sky-500/30 bg-sky-500/10"
                   : "border-accent/30 bg-accent/10"
               )}
             >
               <div className="flex items-center justify-between">
-                <div className="font-display text-xl text-text">{roundSummary.displayRound}</div>
-                <div className="numbers text-sm">
+                <div className="font-display text-lg text-text">{roundSummary.displayRound}</div>
+                <div className="numbers text-xs">
                   {roundSummary.scoreAfter.teamA}-{roundSummary.scoreAfter.teamB}
                 </div>
               </div>
-              <div className="mt-1 text-sm text-muted">
-                {roundSummary.winnerSide} win · {roundSummary.roundType.teamA}/{roundSummary.roundType.teamB}
+              <div className="mt-1 text-xs text-muted">
+                {roundSummary.winnerSide} win - {roundSummary.roundType.teamA}/{roundSummary.roundType.teamB}
               </div>
               <div className="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
-                <span>{roundSummary.bombPlanted ? "Plant ✓" : "Plant ✗"}</span>
+                <span>{roundSummary.bombPlanted ? "Plant yes" : "Plant no"}</span>
                 <span>{reasonLabel(roundSummary.reason)}</span>
               </div>
             </div>
           ))}
         </div>
       </Panel>
-      <div className="space-y-6">
-        <Panel title="Live Match" subtitle="Full HUD with scores, sides, economy, round feed, and player panels.">
-          <div className="rounded-2xl border border-border bg-card/70 p-5">
+      <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
+        <Panel title={t("live_match")} subtitle="Compact fullscreen HUD with scores, sides, economy, and players." className="p-4">
+          <div className="rounded-2xl border border-border bg-card/70 p-4">
             <div className="flex items-center justify-between gap-6">
               <TeamHeader team={match.teamA} score={activeMap.score.teamA} side={activeMap.teamAState.side} />
               <div className="text-center">
-                <div className="font-display text-4xl text-accent">{activeMap.mapName}</div>
-                <div className="mt-1 text-sm text-muted">
+                <div className="font-display text-3xl text-accent">{activeMap.mapName}</div>
+                <div className="mt-1 text-xs text-muted">
                   {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {activeMap.overtimeNumber ? `OT ${activeMap.overtimeNumber}` : "Regulation"}
                 </div>
-                <div className={classNames("mt-3 numbers text-2xl", roundClock <= 10 ? "text-red-400" : "text-text")}>
+                <div className={classNames("mt-2 numbers text-xl", roundClock <= 10 ? "text-red-400" : "text-text")}>
                   {Math.floor(roundClock / 60)}:{String(roundClock % 60).padStart(2, "0")}
                 </div>
               </div>
@@ -1866,17 +2026,17 @@ function LiveMatchView({ match, roundProgress }) {
             </div>
           </div>
         </Panel>
-        <div className="grid grid-cols-[1.2fr_0.8fr] gap-6">
-          <Panel title="Round HUD" subtitle="Current round summary, timeout overlays, and best live ratings.">
+        <div className="grid min-h-0 flex-1 grid-rows-[1fr_180px] gap-4 overflow-hidden">
+          <Panel title={t("round_hud")} subtitle="Current summary, timeout overlays, and leaders." className="flex min-h-0 flex-col overflow-hidden p-4">
             {latestRound ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-card/60 p-4">
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
+                <div className="rounded-2xl border border-border bg-card/60 p-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-xs uppercase tracking-[0.2em] text-muted">Latest Round</div>
-                      <div className="font-display text-3xl text-text">{latestRound.strategy}</div>
+                      <div className="font-display text-2xl text-text">{latestRound.strategy}</div>
                     </div>
-                    <div className="rounded-full border border-border px-3 py-1 text-sm text-muted">
+                    <div className="rounded-full border border-border px-3 py-1 text-xs text-muted">
                       {reasonLabel(latestRound.reason)}
                     </div>
                   </div>
@@ -1902,7 +2062,7 @@ function LiveMatchView({ match, roundProgress }) {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-hidden">
                   <LivePlayerTable title={`${match.teamA.name} Players`} teamKey="teamA" players={teamAPlayers} />
                   <LivePlayerTable title={`${match.teamB.name} Players`} teamKey="teamB" players={teamBPlayers} />
                 </div>
@@ -1913,39 +2073,39 @@ function LiveMatchView({ match, roundProgress }) {
               </div>
             )}
           </Panel>
-          <Panel title="Live Feed" subtitle="Newest play-by-play events stay at the top.">
-            <div className="scrollbar-thin max-h-[710px] space-y-3 overflow-y-auto pr-2">
+          <Panel title={t("economy_graph")} subtitle="Equipment value by round." className="overflow-hidden p-4">
+            <div className="h-full min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={economyData}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                  <XAxis dataKey="label" stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
+                  <YAxis stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "#111318",
+                      border: "1px solid #2a2d36",
+                      borderRadius: 16,
+                      color: "#e8eaf0",
+                    }}
+                  />
+                  <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Panel>
+        </div>
+      </div>
+      <Panel title={t("live_feed")} subtitle="Newest play-by-play events stay at the top." className="flex h-full flex-col overflow-hidden p-4">
+        <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {activeMap.allLogs.slice(0, 24).map((log) => (
                 <div key={log.id} className="rounded-xl border border-border bg-card/60 p-3">
                   <div className="numbers text-xs text-accent">[{log.clock}] {log.mapName} {`R${log.roundNumber}`}</div>
                   <div className="mt-1 text-sm text-text">{log.label}</div>
                 </div>
               ))}
-            </div>
-          </Panel>
         </div>
-        <Panel title="Economy Graph" subtitle="Total equipment value by round updates after every round.">
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={economyData}>
-                <CartesianGrid stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="label" stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 12 }} />
-                <YAxis stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{
-                    background: "#111318",
-                    border: "1px solid #2a2d36",
-                    borderRadius: 16,
-                    color: "#e8eaf0",
-                  }}
-                />
-                <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={3} dot={false} />
-                <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={3} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
-      </div>
+      </Panel>
     </div>
   );
 }
@@ -1969,14 +2129,14 @@ function TeamHeader({ team, score, side, reverse = false }) {
 
 function LivePlayerTable({ title, teamKey, players }) {
   return (
-    <div className="rounded-2xl border border-border bg-card/70 p-4">
-      <div className="mb-3 font-display text-2xl text-text">{title}</div>
-      <div className="space-y-2">
+    <div className="flex min-h-0 flex-col rounded-2xl border border-border bg-card/70 p-3">
+      <div className="mb-2 font-display text-xl text-text">{title}</div>
+      <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {players.map((player) => (
-          <div key={player.id} className="rounded-xl border border-border bg-surface/80 p-3">
+          <div key={player.id} className="rounded-xl border border-border bg-surface/80 p-2.5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="font-display text-xl text-text">{player.nickname}</div>
+                <div className="font-display text-lg text-text">{player.nickname}</div>
                 <div className="text-xs uppercase tracking-[0.18em] text-muted">{player.role}</div>
               </div>
               <div
@@ -1992,11 +2152,11 @@ function LivePlayerTable({ title, teamKey, players }) {
                 [{player.weaponLabel}]
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-[1fr_auto_auto_auto] items-center gap-3">
+            <div className="mt-2 grid grid-cols-[1fr_auto_auto_auto] items-center gap-2">
               <div>
                 <div className="mb-1 flex items-center justify-between text-xs text-muted">
                   <span>HP</span>
-                  <span>{player.alive ? player.hp : "☠"}</span>
+                  <span>{player.alive ? player.hp : "X"}</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-card">
                   <div
@@ -2006,16 +2166,16 @@ function LivePlayerTable({ title, teamKey, players }) {
                 </div>
               </div>
               <div className="text-xs text-muted">
-                Armor {player.armor ? (player.helmet ? "H" : "K") : "✗"}
+                Armor {player.armor ? (player.helmet ? "H" : "K") : "No"}
               </div>
               <div className="text-xs text-muted">Util {player.utilityCount}</div>
               <div className="numbers text-xs">{formatMoney(player.money)}</div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-sm">
-              <span className="numbers">
+            <div className="mt-2 flex items-center justify-between text-xs">
+              <span className="numbers text-xs">
                 {player.kills}/{player.deaths}/{player.assists}
               </span>
-              <span style={{ color: getRatingColor(player.rating) }} className="numbers">
+              <span style={{ color: getRatingColor(player.rating) }} className="numbers text-xs">
                 {player.rating}
               </span>
             </div>
@@ -2027,9 +2187,13 @@ function LivePlayerTable({ title, teamKey, players }) {
 }
 
 function ResultsView({ results }) {
+  const { t } = useI18n();
+  const [statsMode, setStatsMode] = useState("combined");
+  const teamAPlayers = results.players.filter((player) => player.teamKey === "teamA");
+  const teamBPlayers = results.players.filter((player) => player.teamKey === "teamB");
   return (
     <div className="space-y-6">
-      <Panel title="Series Results" subtitle="Final scores, player leaders, map breakdowns, and highlight moments.">
+      <Panel title={t("series_results")} subtitle="Final scores, player leaders, map breakdowns, and highlight moments.">
         <div className="grid grid-cols-[1fr_320px] gap-6">
           <div className="rounded-2xl border border-border bg-card/70 p-5">
             <div className="flex items-center justify-between">
@@ -2063,7 +2227,7 @@ function ResultsView({ results }) {
         </div>
       </Panel>
       <div className="grid grid-cols-[0.8fr_1.2fr] gap-6">
-        <Panel title="Highlights" subtitle="Auto-generated moments from clutches, spikes, and key tactical turns.">
+        <Panel title={t("highlights")} subtitle="Auto-generated moments from clutches, spikes, and key tactical turns.">
           <div className="space-y-3">
             {results.highlights.map((highlight) => (
               <div key={highlight} className="rounded-xl border border-border bg-card/60 p-4 text-sm text-text">
@@ -2072,7 +2236,7 @@ function ResultsView({ results }) {
             ))}
           </div>
         </Panel>
-        <Panel title="Map Breakdown" subtitle="Each map keeps half scores, economy spent, and round-type wins.">
+        <Panel title={t("map_breakdown")} subtitle="Each map keeps half scores, economy spent, and round-type wins.">
           <div className="space-y-4">
             {results.maps.map((map) => (
               <div key={map.id} className="rounded-2xl border border-border bg-card/60 p-4">
@@ -2125,62 +2289,110 @@ function ResultsView({ results }) {
           </div>
         </Panel>
       </div>
-      <Panel title="Full Player Stats" subtitle="Series aggregate scoreboard with ratings, ADR, KAST, HS, clutches, and openings.">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-[0.2em] text-muted">
-              <tr>
-                <th className="pb-3">Player</th>
-                <th className="pb-3">Team</th>
-                <th className="pb-3">K / D / A</th>
-                <th className="pb-3">Rating</th>
-                <th className="pb-3">ADR</th>
-                <th className="pb-3">KAST%</th>
-                <th className="pb-3">HS%</th>
-                <th className="pb-3">Clutches</th>
-                <th className="pb-3">Openings</th>
-                <th className="pb-3">Best Round</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.players.map((player) => (
-                <tr key={`${player.teamKey}_${player.id}`} className="border-t border-border">
-                  <td className="py-3 font-display text-xl text-text">{player.nickname}</td>
-                  <td className="py-3 text-muted">{player.teamTag}</td>
-                  <td className="py-3 numbers">
-                    {player.kills}/{player.deaths}/{player.assists}
-                  </td>
-                  <td className="py-3 numbers" style={{ color: getRatingColor(player.rating) }}>
-                    {player.rating}
-                  </td>
-                  <td className="py-3 numbers">{player.adr}</td>
-                  <td className="py-3 numbers">{player.kastPercent}</td>
-                  <td className="py-3 numbers">{player.hsPercent}</td>
-                  <td className="py-3 numbers">
-                    {player.clutchesWon}/{player.clutchAttempts}
-                  </td>
-                  <td className="py-3 numbers">{player.openingKills}</td>
-                  <td className="py-3 numbers">{player.bestRoundKills}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <Panel
+        title={t("full_player_stats")}
+        subtitle="Series aggregate scoreboard with ratings, ADR, KAST, HS, clutches, and openings."
+        action={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setStatsMode("combined")}
+              className={classNames(
+                "rounded-xl border px-4 py-2 text-sm",
+                statsMode === "combined" ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
+              )}
+            >
+              {t("combined")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatsMode("team")}
+              className={classNames(
+                "rounded-xl border px-4 py-2 text-sm",
+                statsMode === "team" ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
+              )}
+            >
+              {t("by_team")}
+            </button>
+          </div>
+        }
+      >
+        {statsMode === "combined" ? (
+          <StatsTable players={results.players} />
+        ) : (
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="mb-3 font-display text-2xl text-text">{results.teamA.name}</div>
+              <StatsTable players={teamAPlayers} />
+            </div>
+            <div>
+              <div className="mb-3 font-display text-2xl text-text">{results.teamB.name}</div>
+              <StatsTable players={teamBPlayers} />
+            </div>
+          </div>
+        )}
       </Panel>
     </div>
   );
 }
 
+function StatsTable({ players }) {
+  const { t } = useI18n();
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="text-left text-xs uppercase tracking-[0.2em] text-muted">
+          <tr>
+            <th className="pb-3">{t("player")}</th>
+            <th className="pb-3">{t("team")}</th>
+            <th className="pb-3">K / D / A</th>
+            <th className="pb-3">{t("rating")}</th>
+            <th className="pb-3">ADR</th>
+            <th className="pb-3">KAST%</th>
+            <th className="pb-3">HS%</th>
+            <th className="pb-3">Clutches</th>
+            <th className="pb-3">Openings</th>
+            <th className="pb-3">Best Round</th>
+          </tr>
+        </thead>
+        <tbody>
+          {players.map((player) => (
+            <tr key={`${player.teamKey}_${player.id}`} className="border-t border-border">
+              <td className="py-3 font-display text-xl text-text">{player.nickname}</td>
+              <td className="py-3 text-muted">{player.teamTag}</td>
+              <td className="py-3 numbers">
+                {player.kills}/{player.deaths}/{player.assists}
+              </td>
+              <td className="py-3 numbers" style={{ color: getRatingColor(player.rating) }}>
+                {player.rating}
+              </td>
+              <td className="py-3 numbers">{player.adr}</td>
+              <td className="py-3 numbers">{player.kastPercent}</td>
+              <td className="py-3 numbers">{player.hsPercent}</td>
+              <td className="py-3 numbers">
+                {player.clutchesWon}/{player.clutchAttempts}
+              </td>
+              <td className="py-3 numbers">{player.openingKills}</td>
+              <td className="py-3 numbers">{player.bestRoundKills}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function HistoryView({ filter, onFilterChange, entries, onOpen, onClear }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
       <Panel
-        title="History"
+        title={t("history")}
         subtitle="Stored locally, capped to the last 50 series, and fully replayable on the results screen."
         action={
           <button type="button" onClick={onClear} className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-300">
             <Trash2 size={16} />
-            Clear History
+            {t("clear_history")}
           </button>
         }
       >
@@ -2188,7 +2400,7 @@ function HistoryView({ filter, onFilterChange, entries, onOpen, onClear }) {
           <Search size={16} className="text-muted" />
           <input
             type="text"
-            placeholder="Filter by team"
+            placeholder={t("filter_by_team")}
             value={filter}
             onChange={(event) => onFilterChange(event.target.value)}
             className="w-full bg-transparent text-sm text-text outline-none placeholder:text-muted"

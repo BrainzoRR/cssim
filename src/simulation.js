@@ -2,12 +2,12 @@ export const STORAGE_KEY = "cs2sim_state_v1";
 
 export const MAP_POOL = [
   "Mirage",
+  "Overpass",
+  "Anubis",
   "Inferno",
   "Nuke",
-  "Dust2",
+  "Dust",
   "Ancient",
-  "Anubis",
-  "Vertigo",
 ];
 
 export const REGIONS = ["EU", "NA", "CIS", "APAC", "BR", "MENA"];
@@ -59,7 +59,17 @@ export const MAP_CONFIGS = {
     lurkWeight: 0.96,
     gameSenseWeight: 1.1,
   },
-  Dust2: {
+  Overpass: {
+    baseT: 0.48,
+    baseCT: 0.52,
+    traits: ["Long rotations", "Connector control", "Utility-heavy executes"],
+    awpWeight: 1.08,
+    utilityWeight: 1.08,
+    entryWeight: 1.0,
+    lurkWeight: 1.04,
+    gameSenseWeight: 1.04,
+  },
+  Dust: {
     baseT: 0.5,
     baseCT: 0.5,
     traits: ["Long AWP duels", "Tunnels entry", "Open timings"],
@@ -89,16 +99,6 @@ export const MAP_CONFIGS = {
     lurkWeight: 1.0,
     gameSenseWeight: 1.0,
   },
-  Vertigo: {
-    baseT: 0.46,
-    baseCT: 0.54,
-    traits: ["Ramp control", "CT sided", "Entry-heavy openings"],
-    awpWeight: 0.96,
-    utilityWeight: 1.04,
-    entryWeight: 1.12,
-    lurkWeight: 0.94,
-    gameSenseWeight: 1.0,
-  },
 };
 
 export const MAP_ZONES = {
@@ -117,7 +117,12 @@ export const MAP_ZONES = {
     B: ["ramp", "decon", "double doors", "site"],
     Mid: ["outside", "garage", "secret", "lobby"],
   },
-  Dust2: {
+  Overpass: {
+    A: ["long", "bathrooms", "truck", "site"],
+    B: ["monster", "short", "pillar", "site"],
+    Mid: ["connector", "fountain", "party", "short"],
+  },
+  Dust: {
     A: ["long", "catwalk", "A site", "short"],
     B: ["tunnels", "window", "B site", "door"],
     Mid: ["mid", "xbox", "lower tunnels", "top mid"],
@@ -131,11 +136,6 @@ export const MAP_ZONES = {
     A: ["A main", "heaven", "bridge", "site"],
     B: ["canal", "pillar", "site", "bridge"],
     Mid: ["mid", "connector", "water", "top mid"],
-  },
-  Vertigo: {
-    A: ["ramp", "sandbags", "generator", "site"],
-    B: ["stairs", "scaffold", "site", "default"],
-    Mid: ["mid", "underpass", "ladder", "elevator"],
   },
 };
 
@@ -522,6 +522,18 @@ export function createBlankCoach() {
   };
 }
 
+function normalizeMapName(map) {
+  if (map === "Dust2") {
+    return "Dust";
+  }
+
+  if (map === "Vertigo") {
+    return "Overpass";
+  }
+
+  return map;
+}
+
 export function createBlankPlayer(index = 1) {
   return {
     id: uid("player"),
@@ -574,7 +586,10 @@ export function normalizeTeam(teamInput) {
     ...team.coach,
     id: team.coach?.id ?? uid("coach"),
     preferredMaps:
-      team.coach?.preferredMaps?.filter((map) => MAP_POOL.includes(map))?.slice(0, 7) ??
+      team.coach?.preferredMaps
+        ?.map(normalizeMapName)
+        ?.filter((map) => MAP_POOL.includes(map))
+        ?.slice(0, 7) ??
       [...MAP_POOL],
   };
 
@@ -617,7 +632,10 @@ export function normalizeTeam(teamInput) {
 
   team.captainId = captainId;
   team.preferredMaps =
-    team.preferredMaps?.filter((map) => MAP_POOL.includes(map))?.slice(0, 7) ??
+    team.preferredMaps
+      ?.map(normalizeMapName)
+      ?.filter((map) => MAP_POOL.includes(map))
+      ?.slice(0, 7) ??
     [...MAP_POOL];
   team.bannedMaps = deriveBannedMaps(team);
   return team;
@@ -1401,7 +1419,7 @@ function updateInventoryMeta(inventory) {
 }
 
 function getRoundType(teamState, opponentState, roundNumber, isOvertime) {
-  if (!isOvertime && (roundNumber === 1 || roundNumber === 16)) {
+  if (!isOvertime && (roundNumber === 1 || roundNumber === 13)) {
     return "pistol";
   }
 
@@ -1886,7 +1904,7 @@ function maybeUtilityDamage(attackingTeam, defendingTeam, logs, elapsed, mapName
       player.roundLoadout.utilityItems.includes("incendiary")
   );
 
-  if (!throwers.length || Math.random() > average(throwers.map((player) => player.utility)) / 180) {
+  if (!throwers.length || Math.random() > average(throwers.map((player) => player.utility)) / 120) {
     return;
   }
 
@@ -1898,7 +1916,7 @@ function maybeUtilityDamage(attackingTeam, defendingTeam, logs, elapsed, mapName
       : "incendiary";
   consumeUtility(thrower, grenadeType);
   const target = pickCombatant(defendingTeam, "site", "close");
-  const damage = Math.round(rand(10, 32) * (thrower.utility / 90));
+  const damage = Math.round(rand(18, 44) * (thrower.utility / 90));
   target.hp = clamp(target.hp - damage, 0, 100);
   thrower.stats.damage += damage;
   roundFlags[thrower.id].damage += damage;
@@ -2013,6 +2031,22 @@ function maybeRandomAssist(winnerTeamState, killerId, roundFlags) {
   return assister;
 }
 
+function maybeSupportChipDamage(teamState, excludedPlayerId, target, roundFlags) {
+  const helpers = getAlivePlayers(teamState).filter((player) => player.id !== excludedPlayerId);
+
+  if (!helpers.length || Math.random() > 0.6) {
+    return null;
+  }
+
+  const helper = weightedPick(helpers, (player) => player.utility + player.gameSense + player.aim);
+  const chipDamage = Math.round(rand(8, 22) * (helper.aim / 100));
+  target.hp = clamp(target.hp - chipDamage, 1, 100);
+  helper.stats.damage += chipDamage;
+  roundFlags[helper.id].damage += chipDamage;
+  roundFlags[helper.id].gotAssist = true;
+  return { helper, chipDamage };
+}
+
 function getTeamKillCount(teamState, roundFlags) {
   return sum(teamState.players.map((player) => roundFlags[player.id].kills));
 }
@@ -2076,7 +2110,7 @@ function resolveDuelEvent({
         : rand(82, 110)
   );
   const returnDamage =
-    Math.random() < 0.42 ? Math.round(rand(8, 42) * (loser.aim / 100)) : 0;
+    Math.random() < 0.72 ? Math.round(rand(14, 58) * (loser.aim / 100)) : 0;
 
   loser.alive = false;
   loser.hp = 0;
@@ -2085,9 +2119,11 @@ function resolveDuelEvent({
   winner.stats.damage += damage;
   winner.roundRewards += getWeapon(winner.roundLoadout.weaponId).killReward;
   loser.stats.deaths += 1;
+  loser.stats.damage += returnDamage;
   roundFlags[winner.id].kills += 1;
   roundFlags[winner.id].damage += damage;
   roundFlags[winner.id].gotKill = true;
+  roundFlags[loser.id].damage += returnDamage;
   roundFlags[loser.id].died = true;
 
   if (headshot) {
@@ -2115,6 +2151,7 @@ function resolveDuelEvent({
   }
 
   const traded = updateTrade(lastDeath, winnerTeamKey, loser, roundFlags);
+  const supportChip = maybeSupportChipDamage(loserTeam, loser.id, winner, roundFlags);
   const zone = pickZone(mapName, site);
   const prefix = traded ? `${winner.nickname} trades out ${loser.nickname}` : `${winner.nickname} picks off ${loser.nickname}`;
   elapsedLog(
@@ -2123,6 +2160,15 @@ function resolveDuelEvent({
     `${prefix} with ${getWeapon(winner.roundLoadout.weaponId).label} at ${zone}${headshot ? " [HS]" : ""}`,
     "kill"
   );
+
+  if (supportChip) {
+    elapsedLog(
+      logs,
+      elapsed + 1,
+      `${supportChip.helper.nickname} tags ${winner.nickname} for ${supportChip.chipDamage} in the trade attempt`,
+      "damage"
+    );
+  }
 
   if (loser.role === "IGL" && getTeamKillCount(loserTeam, roundFlags) === 0 && phase === "early") {
     tacticalPenalty[loserTeamKey] = (tacticalPenalty[loserTeamKey] ?? 0) - 0.05;
@@ -2392,6 +2438,15 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     plantSite,
     roundFlags
   );
+  maybeUtilityDamage(
+    teamStates[ctKey],
+    teamStates[tKey],
+    logs,
+    elapsed + 4,
+    mapName,
+    plantSite,
+    roundFlags
+  );
 
   const earlyRange = MAP_CONFIGS[mapName].awpWeight > 1.05 || strategy.id === "midControl" ? "long" : "mid";
   const earlyAttackerKey =
@@ -2637,7 +2692,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
   const winnerPayout = winnerPayoutFromReason(winnerSide, reason);
   const loserBonus = lossBonus(teamStates[loserKey].lossStreak + 1);
   const pistolLossBoost =
-    !roundContext.isOvertime && (roundContext.roundNumber === 1 || roundContext.roundNumber === 16)
+    !roundContext.isOvertime && (roundContext.roundNumber === 1 || roundContext.roundNumber === 13)
       ? teamStates[loserKey].team.coach.motivationRating / 2000
       : 0;
   const upset =
@@ -2762,7 +2817,7 @@ function displayRoundLabel(map) {
 
 function halfLabel(map) {
   if (!map.overtimeNumber) {
-    return map.roundNumber <= 15 ? "1H" : "2H";
+    return map.roundNumber <= 12 ? "1H" : "2H";
   }
 
   return map.upcomingOtRound <= 3 ? `OT${map.overtimeNumber} A` : `OT${map.overtimeNumber} B`;
@@ -2812,7 +2867,7 @@ function maybeCallTimeout(teamState, remaining, roundNumber, isOvertime) {
     return false;
   }
 
-  if (!isOvertime && (roundNumber === 1 || roundNumber === 16)) {
+  if (!isOvertime && (roundNumber === 1 || roundNumber === 13)) {
     return false;
   }
 
@@ -2902,8 +2957,8 @@ export function stepMatch(matchInput) {
 
   const regulationWin =
     !activeMap.overtimeNumber &&
-    (activeMap.score.teamA >= 16 || activeMap.score.teamB >= 16);
-  const overtimeTarget = 16 + activeMap.overtimeNumber * 3;
+    (activeMap.score.teamA >= 13 || activeMap.score.teamB >= 13);
+  const overtimeTarget = 13 + activeMap.overtimeNumber * 3;
   const overtimeWin =
     activeMap.overtimeNumber > 0 &&
     (activeMap.score.teamA >= overtimeTarget || activeMap.score.teamB >= overtimeTarget);
@@ -2912,10 +2967,10 @@ export function stepMatch(matchInput) {
     const winnerKey = activeMap.score.teamA > activeMap.score.teamB ? "teamA" : "teamB";
     activeMap = markMapWinner(activeMap, match, winnerKey);
     match.seriesScore[winnerKey] += 1;
-  } else if (!activeMap.overtimeNumber && activeMap.roundNumber === 15) {
+  } else if (!activeMap.overtimeNumber && activeMap.roundNumber === 12) {
     activeMap.roundNumber += 1;
     activeMap.nextReset = "halftime";
-  } else if (!activeMap.overtimeNumber && activeMap.roundNumber === 30) {
+  } else if (!activeMap.overtimeNumber && activeMap.roundNumber === 24) {
     activeMap.roundNumber += 1;
     activeMap.nextReset = "ot-start";
   } else if (activeMap.overtimeNumber > 0 && activeMap.upcomingOtRound === 3) {
