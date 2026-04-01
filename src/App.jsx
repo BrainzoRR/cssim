@@ -390,7 +390,7 @@ function appReducer(state, action) {
       const historyEntry = buildHistoryEntry(results);
       return {
         ...state,
-        currentMatch: finishedMatch,
+        currentMatch: null,
         resultsData: results,
         matchHistory: [
           historyEntry,
@@ -402,6 +402,7 @@ function appReducer(state, action) {
     case "VIEW_HISTORY_RESULT":
       return {
         ...state,
+        currentMatch: null,
         resultsData: action.payload,
         activeView: "results",
       };
@@ -528,6 +529,17 @@ function App() {
     window.localStorage.setItem(STORAGE_KEY, serialized);
     setLastSavedAt(JSON.parse(serialized).lastSavedAt);
   }, [state, matchSetup, language, liveLayoutMode]);
+
+  useEffect(() => {
+    const phoneLiveMode = state.activeView === "live" && state.currentMatch && liveLayoutMode === "phone";
+    document.documentElement.classList.toggle("phone-live", Boolean(phoneLiveMode));
+    document.body.classList.toggle("phone-live", Boolean(phoneLiveMode));
+
+    return () => {
+      document.documentElement.classList.remove("phone-live");
+      document.body.classList.remove("phone-live");
+    };
+  }, [state.activeView, state.currentMatch, liveLayoutMode]);
 
   useEffect(() => {
     if (!state.currentMatch || state.currentMatch.status !== "veto" || state.activeView !== "veto") {
@@ -689,16 +701,23 @@ function App() {
 
   function renderApp() {
     const liveFocus = state.activeView === "live" && state.currentMatch;
+    const phoneLiveMode = liveFocus && liveLayoutMode === "phone";
     return (
-      <div className="min-h-screen bg-hero-grid bg-hero-grid">
-        <TopNav
-          activeView={state.activeView}
-          onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
-        />
+      <div className={classNames(phoneLiveMode ? "h-[100dvh] overflow-hidden bg-hero-grid" : "min-h-screen bg-hero-grid")}>
+        {!phoneLiveMode && (
+          <TopNav
+            activeView={state.activeView}
+            onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
+          />
+        )}
         <div
           className={classNames(
             "mx-auto flex gap-6",
-            liveFocus ? "w-[min(1840px,99vw)] px-3 py-3" : "w-[min(1600px,95vw)] px-4 py-6"
+            phoneLiveMode
+              ? "h-[100dvh] w-screen overflow-hidden px-0 py-0"
+              : liveFocus
+                ? "w-[min(1840px,99vw)] px-3 py-3"
+                : "w-[min(1600px,95vw)] px-4 py-6"
           )}
         >
           <div className="flex-1">
@@ -757,6 +776,7 @@ function App() {
                 roundProgress={roundProgress}
                 layoutMode={liveLayoutMode}
                 onLayoutModeChange={setLiveLayoutMode}
+                fullscreen={phoneLiveMode}
                 resultsFallback={state.resultsData}
               />
             )}
@@ -781,7 +801,7 @@ function App() {
               />
             )}
           </div>
-          <aside className={classNames("hidden w-[300px] xl:block", liveFocus && "xl:hidden")}>
+          <aside className={classNames("hidden w-[300px] xl:block", liveFocus && "xl:hidden", phoneLiveMode && "hidden")}>
             <SideRail
               selectedTeam={selectedTeam}
               currentMatch={state.currentMatch}
@@ -2059,7 +2079,7 @@ function reasonLabel(reason) {
   return "Elimination";
 }
 
-function LiveMatchView({ match, roundProgress, layoutMode = "broadcast", onLayoutModeChange }) {
+function LiveMatchView({ match, roundProgress, layoutMode = "broadcast", onLayoutModeChange, fullscreen = false }) {
   const { t } = useI18n();
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
   const latestRound = activeMap.lastRoundSummary;
@@ -2087,6 +2107,7 @@ function LiveMatchView({ match, roundProgress, layoutMode = "broadcast", onLayou
         roundProgress={roundProgress}
         layoutMode={layoutMode}
         onLayoutModeChange={onLayoutModeChange}
+        fullscreen={fullscreen}
       />
     );
   }
@@ -2343,32 +2364,38 @@ function PhoneLandscapeLiveMatchView({
   roundProgress,
   layoutMode,
   onLayoutModeChange,
+  fullscreen,
 }) {
   const { t } = useI18n();
 
   return (
-    <div className="grid h-[calc(100dvh-98px)] min-h-0 grid-cols-[145px_minmax(0,1fr)_145px] gap-2 overflow-hidden sm:grid-cols-[168px_minmax(0,1fr)_168px]">
+    <div
+      className={classNames(
+        "grid min-h-0 grid-cols-[126px_minmax(0,1fr)_126px] gap-1.5 overflow-hidden sm:grid-cols-[145px_minmax(0,1fr)_145px]",
+        fullscreen ? "h-[100dvh] w-screen" : "h-[calc(100dvh-98px)]"
+      )}
+    >
       <CompactTeamColumn
         team={match.teamA}
         score={activeMap.score.teamA}
         side={teamAState.side}
         players={teamAPlayers}
       />
-      <div className="grid min-h-0 grid-rows-[102px_minmax(0,1fr)] gap-2 overflow-hidden">
+      <div className="grid min-h-0 grid-rows-[92px_minmax(0,1fr)] gap-1.5 overflow-hidden">
         <Panel
           title={`${t("live_match")} · Phone`}
           subtitle="Landscape phone HUD."
           action={<LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact />}
-          className="overflow-hidden p-2.5"
+          className="overflow-hidden rounded-none border-x-0 border-t-0 p-2 sm:rounded-2xl sm:border sm:p-2.5"
         >
-          <div className="rounded-2xl border border-border bg-card/70 px-4 py-3">
+          <div className="rounded-xl border border-border bg-card/70 px-3 py-2.5">
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
               <div>
-                <div className="font-display text-2xl text-text">{match.teamA.tag}</div>
-                <div className="numbers text-3xl text-accent">{activeMap.score.teamA}</div>
+                <div className="font-display text-lg text-text sm:text-2xl">{match.teamA.tag}</div>
+                <div className="numbers text-2xl text-accent sm:text-3xl">{activeMap.score.teamA}</div>
               </div>
               <div className="text-center">
-                <div className="font-display text-2xl text-accent">{activeMap.mapName}</div>
+                <div className="font-display text-xl text-accent sm:text-2xl">{activeMap.mapName}</div>
                 <div className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-muted">
                   {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {activeMap.overtimeNumber ? `OT ${activeMap.overtimeNumber}` : "Reg"}
                 </div>
@@ -2377,8 +2404,8 @@ function PhoneLandscapeLiveMatchView({
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-display text-2xl text-text">{match.teamB.tag}</div>
-                <div className="numbers text-3xl text-sky-300">{activeMap.score.teamB}</div>
+                <div className="font-display text-lg text-text sm:text-2xl">{match.teamB.tag}</div>
+                <div className="numbers text-2xl text-sky-300 sm:text-3xl">{activeMap.score.teamB}</div>
               </div>
             </div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface">
@@ -2389,8 +2416,8 @@ function PhoneLandscapeLiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_190px] gap-2 overflow-hidden sm:grid-cols-[minmax(0,1fr)_220px]">
-          <Panel title={t("round_hud")} subtitle="Core round context." className="min-h-0 overflow-hidden p-2.5">
+        <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_164px] gap-1.5 overflow-hidden sm:grid-cols-[minmax(0,1fr)_190px]">
+          <Panel title={t("round_hud")} subtitle="Core round context." className="min-h-0 overflow-hidden rounded-none border-x-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
             {latestRound ? (
               <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-2">
                 <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
@@ -2441,7 +2468,7 @@ function PhoneLandscapeLiveMatchView({
               </div>
             )}
           </Panel>
-          <Panel title={t("live_feed")} subtitle="Recent calls." className="flex min-h-0 flex-col overflow-hidden p-2.5">
+          <Panel title={t("live_feed")} subtitle="Recent calls." className="flex min-h-0 flex-col overflow-hidden rounded-none border-x-0 p-2 sm:rounded-2xl sm:border sm:p-2.5">
             <div className="scrollbar-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
               {activeMap.allLogs.slice(0, 8).map((log) => (
                 <div key={log.id} className="rounded-xl border border-border bg-card/60 px-2.5 py-2">
@@ -2468,13 +2495,13 @@ function CompactTeamColumn({ team, score, side, players, reverse = false }) {
   const tone = sideToneClasses(side);
 
   return (
-    <section className="panel page-enter grid h-full min-h-0 grid-rows-[54px_repeat(5,minmax(0,1fr))] gap-1.5 rounded-2xl p-2">
+    <section className="panel page-enter grid h-full min-h-0 grid-rows-[48px_repeat(5,minmax(0,1fr))] gap-1 rounded-none border-y-0 p-1.5 sm:rounded-2xl sm:border sm:p-2">
       <div className={classNames("flex items-center justify-between rounded-xl border px-2.5 py-2", tone.border, tone.bg, reverse && "flex-row-reverse text-right")}>
         <div className="min-w-0">
-          <div className="truncate font-display text-xl text-text">{team.tag}</div>
+          <div className="truncate font-display text-base text-text sm:text-xl">{team.tag}</div>
           <div className={classNames("text-[10px] uppercase tracking-[0.16em]", tone.text)}>{side}</div>
         </div>
-        <div className="numbers text-3xl text-text">{score}</div>
+        <div className="numbers text-2xl text-text sm:text-3xl">{score}</div>
       </div>
       {players.map((player) => (
         <CompactTeamPlayerCard key={player.id} player={player} side={side} reverse={reverse} />
@@ -2487,10 +2514,10 @@ function CompactTeamPlayerCard({ player, side, reverse = false }) {
   const tone = sideToneClasses(side);
 
   return (
-    <div className={classNames("rounded-xl border px-2 py-1.5", player.alive ? tone.border : "border-border bg-surface/60 opacity-70")}>
+    <div className={classNames("rounded-lg border px-1.5 py-1", player.alive ? tone.border : "border-border bg-surface/60 opacity-70")}>
       <div className={classNames("flex items-center justify-between gap-1", reverse && "flex-row-reverse text-right")}>
         <div className="min-w-0">
-          <div className="truncate font-display text-sm text-text">{player.nickname}</div>
+          <div className="truncate font-display text-[13px] text-text sm:text-sm">{player.nickname}</div>
           <div className="numbers text-[10px] text-muted">
             {player.kills}/{player.deaths}/{player.assists}
           </div>
