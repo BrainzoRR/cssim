@@ -62,6 +62,12 @@ body.phone-live #root {
   overscroll-behavior: none;
 }
 
+html.phone-live,
+body.phone-live {
+  position: fixed;
+  inset: 0;
+}
+
 .panel {
   border: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(26, 29, 36, 0.98), rgba(18, 20, 24, 0.98));
@@ -99,6 +105,11 @@ body.phone-live #root {
 .scrollbar-thin::-webkit-scrollbar {
   width: 8px;
   height: 8px;
+}
+
+.scrollbar-thin {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {

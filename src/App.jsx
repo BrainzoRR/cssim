@@ -260,6 +260,47 @@ function shouldRefreshLegacySeeds(teams) {
   return signature.every((value, index) => value === LEGACY_SEED_SIGNATURE[index]);
 }
 
+function recoverResultsData(currentMatch, resultsData) {
+  if (resultsData) {
+    return resultsData;
+  }
+
+  if (currentMatch?.status === "finished") {
+    return currentMatch.results ?? buildResultsData(currentMatch);
+  }
+
+  return null;
+}
+
+function sanitizeRestoredSession(snapshotState) {
+  const restoredMatch = snapshotState?.currentMatch ?? null;
+  const restoredResults = recoverResultsData(restoredMatch, snapshotState?.resultsData ?? null);
+  const currentMatch = restoredMatch?.status === "finished" ? null : restoredMatch;
+  let activeView = snapshotState?.activeView ?? "home";
+
+  if ((activeView === "live" || activeView === "veto") && !currentMatch) {
+    activeView = restoredResults ? "results" : activeView === "veto" ? "match-setup" : "home";
+  }
+
+  if (activeView === "results" && !restoredResults) {
+    activeView = currentMatch ? (currentMatch.status === "veto" ? "veto" : "live") : "home";
+  }
+
+  if (activeView === "live" && currentMatch?.status === "veto") {
+    activeView = "veto";
+  }
+
+  if (activeView === "veto" && currentMatch?.status === "live") {
+    activeView = "live";
+  }
+
+  return {
+    activeView,
+    currentMatch,
+    resultsData: restoredResults,
+  };
+}
+
 function loadStoredSnapshot() {
   const fallback = createInitialAppData();
   const baseState = {
@@ -299,17 +340,18 @@ function loadStoredSnapshot() {
     const storedTeams = (parsed.state?.teams ?? parsed.teams ?? fallback.teams).map(normalizeTeam);
     const teams = shouldRefreshLegacySeeds(storedTeams) ? fallback.teams : storedTeams;
     const matchHistory = parsed.state?.matchHistory ?? parsed.matchHistory ?? [];
+    const restoredSession = sanitizeRestoredSession(parsed.state ?? {});
     return {
       state: {
         teams,
         matchHistory,
-        activeView: parsed.state?.activeView ?? "home",
+        activeView: restoredSession.activeView,
         selectedTeamId:
           teams.some((team) => team.id === parsed.state?.selectedTeamId)
             ? parsed.state?.selectedTeamId
             : teams[0]?.id ?? null,
-        currentMatch: parsed.state?.currentMatch ?? null,
-        resultsData: parsed.state?.resultsData ?? null,
+        currentMatch: restoredSession.currentMatch,
+        resultsData: restoredSession.resultsData,
       },
       setup: parsed.matchSetup ?? defaultSetup(teams),
       lastSavedAt: parsed.lastSavedAt ?? null,
@@ -383,6 +425,11 @@ function appReducer(state, action) {
         activeView: "veto",
       };
     case "START_MATCH":
+      if (!state.currentMatch) {
+        return state.resultsData
+          ? { ...state, activeView: "results" }
+          : { ...state, activeView: "match-setup" };
+      }
       return {
         ...state,
         currentMatch: startMatch(state.currentMatch),
@@ -480,6 +527,8 @@ function App() {
   const roundIntervalRef = useRef(null);
   const progressIntervalRef = useRef(null);
   const roundStartedAtRef = useRef(Date.now());
+  const vetoStartTimeoutRef = useRef(null);
+  const instantMatchHandledRef = useRef(null);
   const t = (key) => (language === "ru" ? COPY_RU[key] : COPY[language]?.[key]) ?? COPY.en[key] ?? key;
 
   const pushToast = (message, tone = "success") => {
@@ -555,6 +604,7 @@ function App() {
       return;
     }
 
+    window.clearTimeout(vetoStartTimeoutRef.current);
     setVetoRevealCount(0);
     let reveal = 0;
     const intervalId = window.setInterval(() => {
@@ -562,7 +612,7 @@ function App() {
       setVetoRevealCount(Math.min(reveal, state.currentMatch.veto.steps.length));
       if (reveal >= state.currentMatch.veto.steps.length) {
         window.clearInterval(intervalId);
-        window.setTimeout(() => {
+        vetoStartTimeoutRef.current = window.setTimeout(() => {
           dispatch({ type: "START_MATCH" });
           pushToast("Veto complete. Knife rounds are in and the series is live.");
         }, 900);
@@ -571,6 +621,7 @@ function App() {
 
     return () => {
       window.clearInterval(intervalId);
+      window.clearTimeout(vetoStartTimeoutRef.current);
     };
   }, [state.currentMatch, state.activeView]);
 
@@ -580,10 +631,15 @@ function App() {
     setRoundProgress(0);
 
     if (!state.currentMatch || state.currentMatch.status !== "live") {
+      instantMatchHandledRef.current = null;
       return undefined;
     }
 
     if (state.currentMatch.speed === "instant") {
+      if (instantMatchHandledRef.current === state.currentMatch.id) {
+        return undefined;
+      }
+      instantMatchHandledRef.current = state.currentMatch.id;
       const finished = simulateEntireMatch(state.currentMatch);
       dispatch({ type: "FINISH_MATCH", payload: finished });
       pushToast("Match finished instantly.");
@@ -709,7 +765,14 @@ function App() {
   );
 
   function renderApp() {
-    const liveFocus = state.activeView === "live" && state.currentMatch;
+    const resolvedResultsData = recoverResultsData(state.currentMatch, state.resultsData);
+    const resolvedActiveView =
+      (state.activeView === "live" || state.activeView === "veto") &&
+      !state.currentMatch &&
+      resolvedResultsData
+        ? "results"
+        : state.activeView;
+    const liveFocus = resolvedActiveView === "live" && state.currentMatch;
     const effectiveLiveLayout = siteMode === "mobile" ? "phone" : liveLayoutMode;
     const mobileSite = siteMode === "mobile";
     const phoneLiveMode = liveFocus && effectiveLiveLayout === "phone";
@@ -717,8 +780,8 @@ function App() {
       <div className={classNames(phoneLiveMode ? "h-[100dvh] overflow-hidden bg-hero-grid" : "min-h-screen bg-hero-grid")}>
         {!phoneLiveMode &&
           (mobileSite ? (
-            <MobileHeader
-              activeView={state.activeView}
+              <MobileHeader
+              activeView={resolvedActiveView}
               siteMode={siteMode}
               onSiteModeChange={(mode) => {
                 setSiteMode(mode);
@@ -729,7 +792,7 @@ function App() {
             />
           ) : (
             <TopNav
-              activeView={state.activeView}
+              activeView={resolvedActiveView}
               onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
             />
           ))}
@@ -746,7 +809,7 @@ function App() {
           )}
         >
           <div className="flex-1">
-            {state.activeView === "home" && (
+            {resolvedActiveView === "home" && (
               <HomeView
                 teams={state.teams}
                 history={state.matchHistory}
@@ -756,7 +819,7 @@ function App() {
                 onOpenHistory={() => dispatch({ type: "NAVIGATE", payload: "history" })}
               />
             )}
-            {state.activeView === "teams" && (
+            {resolvedActiveView === "teams" && (
               <TeamsView
                 teams={state.teams}
                 mobile={mobileSite}
@@ -785,7 +848,7 @@ function App() {
                 onImport={() => importInputRef.current?.click()}
               />
             )}
-            {state.activeView === "match-setup" && (
+            {resolvedActiveView === "match-setup" && (
               <MatchSetupView
                 teams={state.teams}
                 mobile={mobileSite}
@@ -795,10 +858,10 @@ function App() {
                 canStartMatch={canStartMatch}
               />
             )}
-            {state.activeView === "veto" && state.currentMatch && (
+            {resolvedActiveView === "veto" && state.currentMatch && (
               <VetoView match={state.currentMatch} revealedCount={vetoRevealCount} mobile={mobileSite} />
             )}
-            {state.activeView === "live" && state.currentMatch && (
+            {resolvedActiveView === "live" && state.currentMatch && (
               <LiveMatchView
                 match={state.currentMatch}
                 roundProgress={roundProgress}
@@ -806,13 +869,12 @@ function App() {
                 layoutMode={effectiveLiveLayout}
                 onLayoutModeChange={setLiveLayoutMode}
                 fullscreen={phoneLiveMode}
-                resultsFallback={state.resultsData}
               />
             )}
-            {state.activeView === "results" && state.resultsData && (
-              <ResultsView results={state.resultsData} mobile={mobileSite} />
+            {resolvedActiveView === "results" && resolvedResultsData && (
+              <ResultsView results={resolvedResultsData} mobile={mobileSite} />
             )}
-            {state.activeView === "history" && (
+            {resolvedActiveView === "history" && (
               <HistoryView
                 mobile={mobileSite}
                 filter={historyFilter}
@@ -847,11 +909,11 @@ function App() {
           </footer>
         )}
         {mobileSite && !phoneLiveMode && (
-          <MobileBottomNav
-            activeView={state.activeView}
-            onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
-          />
-        )}
+            <MobileBottomNav
+              activeView={resolvedActiveView}
+              onNavigate={(view) => dispatch({ type: "NAVIGATE", payload: view })}
+            />
+          )}
         <input
           ref={importInputRef}
           type="file"
@@ -923,6 +985,32 @@ function renderLogo(logo, fallback = "T") {
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
+}
+
+function useIsLandscape(enabled = true) {
+  const getValue = () => (typeof window !== "undefined" ? window.innerWidth > window.innerHeight : true);
+  const [isLandscape, setIsLandscape] = useState(getValue);
+
+  useEffect(() => {
+    if (!enabled || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const syncOrientation = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    };
+
+    syncOrientation();
+    window.addEventListener("resize", syncOrientation);
+    window.addEventListener("orientationchange", syncOrientation);
+
+    return () => {
+      window.removeEventListener("resize", syncOrientation);
+      window.removeEventListener("orientationchange", syncOrientation);
+    };
+  }, [enabled]);
+
+  return isLandscape;
 }
 
 function Panel({ title, subtitle, action, children, className = "" }) {
@@ -2545,6 +2633,35 @@ function PhoneLandscapeLiveMatchView({
   mobileSite = false,
 }) {
   const { t } = useI18n();
+  const isLandscape = useIsLandscape(mobileSite);
+  const [mobilePane, setMobilePane] = useState("round");
+  const economyData = activeMap.economyHistory.map((entry) => ({
+    ...entry,
+    label: entry.label,
+  }));
+
+  if (mobileSite && !isLandscape) {
+    return <RotatePhonePrompt match={match} activeMap={activeMap} />;
+  }
+
+  if (mobileSite) {
+    return (
+      <MobileLiveMatchView
+        match={match}
+        activeMap={activeMap}
+        latestRound={latestRound}
+        teamAPlayers={teamAPlayers}
+        teamBPlayers={teamBPlayers}
+        teamAState={teamAState}
+        teamBState={teamBState}
+        roundClock={roundClock}
+        roundProgress={roundProgress}
+        economyData={economyData}
+        mobilePane={mobilePane}
+        onPaneChange={setMobilePane}
+      />
+    );
+  }
 
   return (
     <div
@@ -2716,6 +2833,265 @@ function CompactTeamPlayerCard({ player, side, reverse = false }) {
         <span style={{ color: getRatingColor(player.rating) }} className="numbers">
           {player.rating}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function RotatePhonePrompt({ match, activeMap }) {
+  return (
+    <div className="flex h-[100dvh] w-screen items-center justify-center overflow-hidden px-4 py-5">
+      <div className="panel w-full max-w-sm rounded-3xl p-6 text-center">
+        <div className="text-xs uppercase tracking-[0.24em] text-accent">Mobile Live</div>
+        <div className="mt-3 font-display text-4xl text-text">Rotate Phone</div>
+        <div className="mt-3 text-sm text-muted">
+          The mobile live HUD is tuned for landscape so all 10 players, the score, and round context stay visible.
+        </div>
+        <div className="mt-5 rounded-2xl border border-border bg-card/70 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="text-left">
+              <div className="font-display text-xl text-text">{match.teamA.tag}</div>
+              <div className="numbers text-2xl text-accent">{activeMap.score.teamA}</div>
+            </div>
+            <div className="text-center">
+              <div className="font-display text-xl text-accent">{activeMap.mapName}</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Landscape</div>
+            </div>
+            <div className="text-right">
+              <div className="font-display text-xl text-text">{match.teamB.tag}</div>
+              <div className="numbers text-2xl text-sky-300">{activeMap.score.teamB}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileLiveMatchView({
+  match,
+  activeMap,
+  latestRound,
+  teamAPlayers,
+  teamBPlayers,
+  teamAState,
+  teamBState,
+  roundClock,
+  roundProgress,
+  economyData,
+  mobilePane,
+  onPaneChange,
+}) {
+  const tabs = [
+    { id: "round", label: "Round" },
+    { id: "feed", label: "Feed" },
+    { id: "econ", label: "Economy" },
+  ];
+
+  return (
+    <div className="grid h-[100dvh] w-screen grid-cols-[112px_minmax(0,1fr)_112px] gap-1 overflow-hidden bg-hero-grid px-1 py-1 sm:grid-cols-[124px_minmax(0,1fr)_124px]">
+      <MobileCompactTeamColumn team={match.teamA} score={activeMap.score.teamA} side={teamAState.side} players={teamAPlayers} />
+      <div className="grid min-h-0 grid-rows-[58px_32px_minmax(0,1fr)] gap-1 overflow-hidden">
+        <div className="panel rounded-2xl p-2">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card/80 px-3 py-2">
+            <div className="min-w-0">
+              <div className="font-display text-sm text-text">{match.teamA.tag}</div>
+              <div className={classNames("text-[9px] uppercase tracking-[0.18em]", sideToneClasses(teamAState.side).text)}>{teamAState.side}</div>
+            </div>
+            <div className="numbers text-3xl text-accent">{activeMap.score.teamA}</div>
+            <div className="min-w-0 text-center">
+              <div className="font-display text-lg text-accent">{activeMap.mapName}</div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{latestRound?.displayRound ?? `R${activeMap.roundNumber}`}</div>
+              <div className="numbers text-sm text-text">{Math.floor(roundClock / 60)}:{String(roundClock % 60).padStart(2, "0")}</div>
+            </div>
+            <div className="numbers text-3xl text-sky-300">{activeMap.score.teamB}</div>
+            <div className="min-w-0 text-right">
+              <div className="font-display text-sm text-text">{match.teamB.tag}</div>
+              <div className={classNames("text-[9px] uppercase tracking-[0.18em]", sideToneClasses(teamBState.side).text)}>{teamBState.side}</div>
+            </div>
+          </div>
+          <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface">
+            <div className={classNames("h-full rounded-full transition-all", roundClock <= 10 ? "bg-red-500" : "bg-accent")} style={{ width: `${Math.max(4, roundProgress * 100)}%` }} />
+          </div>
+        </div>
+        <div className="panel rounded-2xl p-1">
+          <div className="grid h-full grid-cols-3 gap-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onPaneChange(tab.id)}
+                className={classNames(
+                  "rounded-xl border text-[10px] uppercase tracking-[0.18em] transition",
+                  mobilePane === tab.id ? "border-accent bg-accent/10 text-accent" : "border-border bg-card/50 text-muted"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="panel min-h-0 overflow-hidden rounded-2xl p-2">
+          {mobilePane === "feed" ? (
+            <MobileFeedPanel logs={activeMap.allLogs} limit={7} />
+          ) : mobilePane === "econ" ? (
+            <MobileEconomyPanel economyData={economyData} latestRound={latestRound} teamA={match.teamA} teamB={match.teamB} timeoutsRemaining={match.timeoutsRemaining} />
+          ) : (
+            <MobileRoundContext match={match} latestRound={latestRound} fallbackRound={activeMap.roundNumber} />
+          )}
+        </div>
+      </div>
+      <MobileCompactTeamColumn team={match.teamB} score={activeMap.score.teamB} side={teamBState.side} players={teamBPlayers} reverse />
+    </div>
+  );
+}
+
+function MobileRoundContext({ match, latestRound, fallbackRound }) {
+  if (!latestRound) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-border px-4 text-center text-xs text-muted">
+        Waiting for round {fallbackRound}.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-2">
+      <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-display text-xl text-text">{latestRound.strategy}</div>
+            <div className="truncate text-[11px] text-muted">
+              {latestRound.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by {reasonLabel(latestRound.reason)}
+            </div>
+          </div>
+          <div className="rounded-full border border-border px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-muted">
+            {latestRound.displayRound}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-border bg-surface/80 px-2.5 py-2">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-muted">{match.teamA.tag}</div>
+          <div className="mt-1 text-xs text-text">{roundTypeLabel(latestRound.roundType.teamA)}</div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/80 px-2.5 py-2">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-muted">Bomb</div>
+          <div className="mt-1 text-xs text-text">{latestRound.bombPlanted ? latestRound.plantSite ?? "Planted" : "No plant"}</div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/80 px-2.5 py-2">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-muted">{match.teamB.tag}</div>
+          <div className="mt-1 text-xs text-text">{roundTypeLabel(latestRound.roundType.teamB)}</div>
+        </div>
+      </div>
+      <div className="grid min-h-0 grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted">Top {match.teamA.tag}</div>
+          <div className="mt-1 truncate font-display text-lg text-text">{latestRound.spectatorLeaders.teamA.nickname}</div>
+          <div className="numbers text-sm text-accent">{latestRound.spectatorLeaders.teamA.rating}</div>
+          <div className="mt-1 numbers text-[11px] text-muted">{formatMoney(latestRound.economy.teamATotalMoney)}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted">Top {match.teamB.tag}</div>
+          <div className="mt-1 truncate font-display text-lg text-text">{latestRound.spectatorLeaders.teamB.nickname}</div>
+          <div className="numbers text-sm text-sky-300">{latestRound.spectatorLeaders.teamB.rating}</div>
+          <div className="mt-1 numbers text-[11px] text-muted">{formatMoney(latestRound.economy.teamBTotalMoney)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileFeedPanel({ logs, limit = 7 }) {
+  return (
+    <div className="scrollbar-thin min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+      {logs.slice(0, limit).map((log) => (
+        <div key={log.id} className="rounded-xl border border-border bg-card/60 px-2.5 py-2">
+          <div className="numbers text-[10px] text-accent">[{log.clock}] R{log.roundNumber}</div>
+          <div className="mt-1 text-[11px] leading-4 text-text">{log.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MobileEconomyPanel({ economyData, latestRound, teamA, teamB, timeoutsRemaining }) {
+  return (
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{teamA.tag} Bank</div>
+          <div className="mt-1 numbers text-sm text-accent">{formatMoney(latestRound?.economy.teamATotalMoney ?? 0)}</div>
+          <div className="mt-1 text-[10px] text-muted">TO {timeoutsRemaining.teamA}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 px-3 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted">{teamB.tag} Bank</div>
+          <div className="mt-1 numbers text-sm text-sky-300">{formatMoney(latestRound?.economy.teamBTotalMoney ?? 0)}</div>
+          <div className="mt-1 text-[10px] text-muted">TO {timeoutsRemaining.teamB}</div>
+        </div>
+      </div>
+      <div className="min-h-0 rounded-2xl border border-border bg-card/60 p-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={economyData}>
+            <CartesianGrid stroke="#1f232c" strokeDasharray="3 3" />
+            <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={34} />
+            <Tooltip
+              contentStyle={{
+                background: "#111318",
+                border: "1px solid #2a2d36",
+                borderRadius: 12,
+                color: "#e8eaf0",
+              }}
+            />
+            <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.2} dot={false} />
+            <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function MobileCompactTeamColumn({ team, score, side, players, reverse = false }) {
+  const tone = sideToneClasses(side);
+
+  return (
+    <section className="panel page-enter grid h-full min-h-0 grid-rows-[42px_repeat(5,minmax(0,1fr))] gap-1 overflow-hidden rounded-none border-y-0 p-1">
+      <div className={classNames("flex items-center justify-between rounded-xl border px-2 py-1.5", tone.border, tone.bg, reverse && "flex-row-reverse text-right")}>
+        <div className="min-w-0">
+          <div className="truncate font-display text-sm text-text">{team.tag}</div>
+          <div className={classNames("text-[9px] uppercase tracking-[0.16em]", tone.text)}>{side}</div>
+        </div>
+        <div className="numbers text-2xl text-text">{score}</div>
+      </div>
+      {players.map((player) => (
+        <MobileCompactPlayerCard key={player.id} player={player} side={side} reverse={reverse} />
+      ))}
+    </section>
+  );
+}
+
+function MobileCompactPlayerCard({ player, side, reverse = false }) {
+  const tone = sideToneClasses(side);
+
+  return (
+    <div className={classNames("rounded-lg border px-1.5 py-1", player.alive ? tone.border : "border-border bg-surface/60 opacity-70")}>
+      <div className={classNames("flex items-center justify-between gap-1", reverse && "flex-row-reverse text-right")}>
+        <div className="min-w-0">
+          <div className="truncate font-display text-[12px] text-text">{player.nickname}</div>
+          <div className="numbers text-[10px] text-muted">{player.kills}/{player.deaths}/{player.assists}</div>
+        </div>
+        <div className={classNames("shrink-0 rounded-md px-1 py-0.5 text-[9px] font-semibold", weaponBadgeClasses(player.weaponType))}>
+          [{player.weaponLabel}]
+        </div>
+      </div>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface">
+        <div className={classNames("h-full rounded-full", tone.bar)} style={{ width: `${player.alive ? player.hp : 0}%` }} />
+      </div>
+      <div className={classNames("mt-1 flex items-center justify-between gap-1 text-[10px]", reverse && "flex-row-reverse")}>
+        <span className="text-muted">{player.alive ? `${player.hp} HP` : "OUT"}</span>
+        <span style={{ color: getRatingColor(player.rating) }} className="numbers">{player.rating}</span>
       </div>
     </div>
   );

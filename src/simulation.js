@@ -1498,7 +1498,7 @@ function calculateDerivedStats(stats) {
           impact * 0.1) *
           2.15,
         0.2,
-        2.4
+        3.25
       ),
       2
     ),
