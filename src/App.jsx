@@ -263,140 +263,144 @@ const RADAR_VIEWBOXES = {
   },
 };
 
+function radarRegion(x, y, width, height, level = "upper") {
+  return { x, y, width, height, level };
+}
+
 const RADAR_SITE_FALLBACKS = {
   Mirage: {
-    A: { x: 0.77, y: 0.42, level: "upper" },
-    B: { x: 0.2, y: 0.59, level: "upper" },
-    Mid: { x: 0.52, y: 0.6, level: "upper" },
+    A: radarRegion(0.74, 0.48, 0.2, 0.18),
+    B: radarRegion(0.22, 0.56, 0.18, 0.18),
+    Mid: radarRegion(0.52, 0.61, 0.18, 0.16),
   },
   Inferno: {
-    A: { x: 0.73, y: 0.73, level: "upper" },
-    B: { x: 0.22, y: 0.14, level: "upper" },
-    Mid: { x: 0.49, y: 0.6, level: "upper" },
+    A: radarRegion(0.73, 0.72, 0.2, 0.18),
+    B: radarRegion(0.23, 0.18, 0.18, 0.18),
+    Mid: radarRegion(0.49, 0.6, 0.18, 0.18),
   },
   Nuke: {
-    A: { x: 0.57, y: 0.44, level: "upper" },
-    B: { x: 0.58, y: 0.54, level: "lower" },
-    Mid: { x: 0.49, y: 0.52, level: "upper" },
+    A: radarRegion(0.57, 0.44, 0.18, 0.16),
+    B: radarRegion(0.58, 0.54, 0.2, 0.18, "lower"),
+    Mid: radarRegion(0.49, 0.52, 0.18, 0.18),
   },
   Overpass: {
-    A: { x: 0.78, y: 0.24, level: "upper" },
-    B: { x: 0.24, y: 0.64, level: "upper" },
-    Mid: { x: 0.52, y: 0.35, level: "upper" },
+    A: radarRegion(0.78, 0.24, 0.18, 0.16),
+    B: radarRegion(0.24, 0.64, 0.18, 0.18),
+    Mid: radarRegion(0.52, 0.35, 0.18, 0.18),
   },
   Dust: {
-    A: { x: 0.79, y: 0.19, level: "upper" },
-    B: { x: 0.16, y: 0.17, level: "upper" },
-    Mid: { x: 0.5, y: 0.39, level: "upper" },
+    A: radarRegion(0.79, 0.19, 0.18, 0.14),
+    B: radarRegion(0.16, 0.17, 0.18, 0.16),
+    Mid: radarRegion(0.5, 0.39, 0.2, 0.16),
   },
   Ancient: {
-    A: { x: 0.72, y: 0.18, level: "upper" },
-    B: { x: 0.23, y: 0.28, level: "upper" },
-    Mid: { x: 0.5, y: 0.54, level: "upper" },
+    A: radarRegion(0.72, 0.18, 0.18, 0.16),
+    B: radarRegion(0.23, 0.28, 0.18, 0.16),
+    Mid: radarRegion(0.5, 0.54, 0.18, 0.18),
   },
   Anubis: {
-    A: { x: 0.27, y: 0.57, level: "upper" },
-    B: { x: 0.81, y: 0.18, level: "upper" },
-    Mid: { x: 0.51, y: 0.53, level: "upper" },
+    A: radarRegion(0.26, 0.58, 0.2, 0.18),
+    B: radarRegion(0.8, 0.2, 0.18, 0.16),
+    Mid: radarRegion(0.51, 0.53, 0.2, 0.16),
   },
 };
 
 const RADAR_ZONE_POSITIONS = {
   Mirage: {
-    "A ramp": { x: 0.63, y: 0.86, level: "upper" },
-    palace: { x: 0.67, y: 0.18, level: "upper" },
-    ticket: { x: 0.84, y: 0.43, level: "upper" },
-    jungle: { x: 0.71, y: 0.52, level: "upper" },
-    apartments: { x: 0.17, y: 0.18, level: "upper" },
-    bench: { x: 0.21, y: 0.67, level: "upper" },
-    market: { x: 0.3, y: 0.57, level: "upper" },
-    van: { x: 0.15, y: 0.58, level: "upper" },
-    "top mid": { x: 0.52, y: 0.68, level: "upper" },
-    window: { x: 0.53, y: 0.53, level: "upper" },
-    connector: { x: 0.63, y: 0.66, level: "upper" },
-    catwalk: { x: 0.39, y: 0.52, level: "upper" },
+    "A ramp": radarRegion(0.63, 0.86, 0.1, 0.1),
+    palace: radarRegion(0.67, 0.18, 0.12, 0.12),
+    ticket: radarRegion(0.84, 0.43, 0.08, 0.12),
+    jungle: radarRegion(0.71, 0.52, 0.12, 0.12),
+    apartments: radarRegion(0.17, 0.18, 0.14, 0.12),
+    bench: radarRegion(0.21, 0.67, 0.06, 0.08),
+    market: radarRegion(0.3, 0.57, 0.1, 0.1),
+    van: radarRegion(0.15, 0.58, 0.08, 0.08),
+    "top mid": radarRegion(0.52, 0.68, 0.14, 0.12),
+    window: radarRegion(0.53, 0.53, 0.08, 0.08),
+    connector: radarRegion(0.63, 0.66, 0.1, 0.1),
+    catwalk: radarRegion(0.39, 0.52, 0.12, 0.1),
   },
   Inferno: {
-    short: { x: 0.61, y: 0.7, level: "upper" },
-    library: { x: 0.76, y: 0.63, level: "upper" },
-    pit: { x: 0.83, y: 0.76, level: "upper" },
-    "site::A": { x: 0.74, y: 0.74, level: "upper" },
-    banana: { x: 0.29, y: 0.44, level: "upper" },
-    coffins: { x: 0.2, y: 0.16, level: "upper" },
-    "new box": { x: 0.25, y: 0.17, level: "upper" },
-    dark: { x: 0.19, y: 0.23, level: "upper" },
-    mid: { x: 0.47, y: 0.58, level: "upper" },
-    arch: { x: 0.62, y: 0.56, level: "upper" },
-    boiler: { x: 0.52, y: 0.72, level: "upper" },
-    lane: { x: 0.42, y: 0.71, level: "upper" },
+    short: radarRegion(0.61, 0.7, 0.08, 0.08),
+    library: radarRegion(0.76, 0.63, 0.08, 0.08),
+    pit: radarRegion(0.83, 0.76, 0.12, 0.12),
+    "site::A": radarRegion(0.74, 0.74, 0.12, 0.12),
+    banana: radarRegion(0.29, 0.44, 0.14, 0.18),
+    coffins: radarRegion(0.2, 0.16, 0.08, 0.08),
+    "new box": radarRegion(0.25, 0.17, 0.08, 0.08),
+    dark: radarRegion(0.19, 0.23, 0.08, 0.08),
+    mid: radarRegion(0.47, 0.58, 0.12, 0.12),
+    arch: radarRegion(0.62, 0.56, 0.08, 0.08),
+    boiler: radarRegion(0.52, 0.72, 0.1, 0.1),
+    lane: radarRegion(0.42, 0.71, 0.1, 0.1),
   },
   Nuke: {
-    outside: { x: 0.24, y: 0.47, level: "upper" },
-    mini: { x: 0.44, y: 0.38, level: "upper" },
-    hut: { x: 0.56, y: 0.47, level: "upper" },
-    heaven: { x: 0.61, y: 0.37, level: "upper" },
-    ramp: { x: 0.21, y: 0.5, level: "lower" },
-    decon: { x: 0.69, y: 0.55, level: "lower" },
-    "double doors": { x: 0.78, y: 0.52, level: "lower" },
-    "site::B": { x: 0.57, y: 0.53, level: "lower" },
-    garage: { x: 0.28, y: 0.41, level: "upper" },
-    secret: { x: 0.39, y: 0.63, level: "lower" },
-    lobby: { x: 0.69, y: 0.58, level: "upper" },
+    outside: radarRegion(0.24, 0.47, 0.14, 0.16),
+    mini: radarRegion(0.44, 0.38, 0.08, 0.08),
+    hut: radarRegion(0.56, 0.47, 0.08, 0.1),
+    heaven: radarRegion(0.61, 0.37, 0.08, 0.08),
+    ramp: radarRegion(0.21, 0.5, 0.14, 0.14, "lower"),
+    decon: radarRegion(0.69, 0.55, 0.08, 0.08, "lower"),
+    "double doors": radarRegion(0.78, 0.52, 0.08, 0.08, "lower"),
+    "site::B": radarRegion(0.57, 0.53, 0.14, 0.12, "lower"),
+    garage: radarRegion(0.28, 0.41, 0.08, 0.08),
+    secret: radarRegion(0.39, 0.63, 0.12, 0.1, "lower"),
+    lobby: radarRegion(0.69, 0.58, 0.12, 0.12),
   },
   Overpass: {
-    long: { x: 0.75, y: 0.22, level: "upper" },
-    bathrooms: { x: 0.63, y: 0.23, level: "upper" },
-    truck: { x: 0.82, y: 0.31, level: "upper" },
-    "site::A": { x: 0.78, y: 0.24, level: "upper" },
-    monster: { x: 0.18, y: 0.74, level: "upper" },
-    "short::B": { x: 0.37, y: 0.67, level: "upper" },
-    pillar: { x: 0.27, y: 0.64, level: "upper" },
-    "site::B": { x: 0.24, y: 0.59, level: "upper" },
-    connector: { x: 0.46, y: 0.46, level: "upper" },
-    fountain: { x: 0.54, y: 0.26, level: "upper" },
-    party: { x: 0.66, y: 0.13, level: "upper" },
-    "short::Mid": { x: 0.4, y: 0.54, level: "upper" },
+    long: radarRegion(0.75, 0.22, 0.14, 0.14),
+    bathrooms: radarRegion(0.63, 0.23, 0.12, 0.1),
+    truck: radarRegion(0.82, 0.31, 0.08, 0.08),
+    "site::A": radarRegion(0.78, 0.24, 0.12, 0.12),
+    monster: radarRegion(0.18, 0.74, 0.12, 0.14),
+    "short::B": radarRegion(0.37, 0.67, 0.1, 0.1),
+    pillar: radarRegion(0.27, 0.64, 0.08, 0.08),
+    "site::B": radarRegion(0.24, 0.59, 0.14, 0.12),
+    connector: radarRegion(0.46, 0.46, 0.1, 0.1),
+    fountain: radarRegion(0.54, 0.26, 0.08, 0.08),
+    party: radarRegion(0.66, 0.13, 0.1, 0.1),
+    "short::Mid": radarRegion(0.4, 0.54, 0.1, 0.1),
   },
   Dust: {
-    long: { x: 0.18, y: 0.65, level: "upper" },
-    catwalk: { x: 0.62, y: 0.25, level: "upper" },
-    "A site": { x: 0.79, y: 0.19, level: "upper" },
-    "short::A": { x: 0.69, y: 0.28, level: "upper" },
-    tunnels: { x: 0.16, y: 0.1, level: "upper" },
-    window: { x: 0.23, y: 0.18, level: "upper" },
-    "B site": { x: 0.15, y: 0.17, level: "upper" },
-    door: { x: 0.24, y: 0.27, level: "upper" },
-    mid: { x: 0.5, y: 0.4, level: "upper" },
-    xbox: { x: 0.58, y: 0.38, level: "upper" },
-    "lower tunnels": { x: 0.39, y: 0.49, level: "upper" },
-    "top mid": { x: 0.49, y: 0.29, level: "upper" },
+    long: radarRegion(0.18, 0.65, 0.16, 0.14),
+    catwalk: radarRegion(0.62, 0.25, 0.12, 0.12),
+    "A site": radarRegion(0.79, 0.19, 0.14, 0.1),
+    "short::A": radarRegion(0.69, 0.28, 0.1, 0.1),
+    tunnels: radarRegion(0.16, 0.1, 0.14, 0.12),
+    window: radarRegion(0.23, 0.18, 0.08, 0.08),
+    "B site": radarRegion(0.15, 0.17, 0.12, 0.1),
+    door: radarRegion(0.24, 0.27, 0.08, 0.1),
+    mid: radarRegion(0.5, 0.4, 0.12, 0.1),
+    xbox: radarRegion(0.58, 0.38, 0.08, 0.08),
+    "lower tunnels": radarRegion(0.39, 0.49, 0.12, 0.12),
+    "top mid": radarRegion(0.49, 0.29, 0.12, 0.1),
   },
   Ancient: {
-    "A main": { x: 0.3, y: 0.72, level: "upper" },
-    donut: { x: 0.58, y: 0.45, level: "upper" },
-    temple: { x: 0.68, y: 0.3, level: "upper" },
-    "site::A": { x: 0.72, y: 0.18, level: "upper" },
-    cave: { x: 0.28, y: 0.18, level: "upper" },
-    lane: { x: 0.38, y: 0.27, level: "upper" },
-    "back site": { x: 0.22, y: 0.31, level: "upper" },
-    ramp: { x: 0.47, y: 0.22, level: "upper" },
-    mid: { x: 0.52, y: 0.53, level: "upper" },
-    "red room": { x: 0.45, y: 0.63, level: "upper" },
-    boost: { x: 0.41, y: 0.48, level: "upper" },
+    "A main": radarRegion(0.3, 0.72, 0.14, 0.14),
+    donut: radarRegion(0.58, 0.45, 0.1, 0.1),
+    temple: radarRegion(0.68, 0.3, 0.1, 0.1),
+    "site::A": radarRegion(0.72, 0.18, 0.14, 0.12),
+    cave: radarRegion(0.28, 0.18, 0.12, 0.12),
+    lane: radarRegion(0.38, 0.27, 0.1, 0.1),
+    "back site": radarRegion(0.22, 0.31, 0.12, 0.1),
+    ramp: radarRegion(0.47, 0.22, 0.1, 0.1),
+    mid: radarRegion(0.52, 0.53, 0.12, 0.12),
+    "red room": radarRegion(0.45, 0.63, 0.1, 0.1),
+    boost: radarRegion(0.41, 0.48, 0.1, 0.1),
   },
   Anubis: {
-    "A main": { x: 0.18, y: 0.76, level: "upper" },
-    heaven: { x: 0.28, y: 0.3, level: "upper" },
-    "bridge::A": { x: 0.35, y: 0.39, level: "upper" },
-    "site::A": { x: 0.24, y: 0.56, level: "upper" },
-    canal: { x: 0.84, y: 0.22, level: "upper" },
-    pillar: { x: 0.72, y: 0.31, level: "upper" },
-    "site::B": { x: 0.81, y: 0.18, level: "upper" },
-    "bridge::B": { x: 0.66, y: 0.33, level: "upper" },
-    mid: { x: 0.5, y: 0.53, level: "upper" },
-    connector: { x: 0.55, y: 0.44, level: "upper" },
-    water: { x: 0.57, y: 0.63, level: "upper" },
-    "top mid": { x: 0.45, y: 0.72, level: "upper" },
+    "A main": radarRegion(0.18, 0.76, 0.16, 0.14),
+    heaven: radarRegion(0.28, 0.3, 0.1, 0.12),
+    "bridge::A": radarRegion(0.35, 0.39, 0.12, 0.08),
+    "site::A": radarRegion(0.24, 0.56, 0.14, 0.14),
+    canal: radarRegion(0.84, 0.22, 0.1, 0.12),
+    pillar: radarRegion(0.72, 0.31, 0.1, 0.1),
+    "site::B": radarRegion(0.81, 0.18, 0.12, 0.1),
+    "bridge::B": radarRegion(0.66, 0.33, 0.12, 0.08),
+    mid: radarRegion(0.5, 0.53, 0.12, 0.1),
+    connector: radarRegion(0.55, 0.44, 0.1, 0.08),
+    water: radarRegion(0.57, 0.63, 0.12, 0.1),
+    "top mid": radarRegion(0.45, 0.72, 0.1, 0.1),
   },
 };
 
@@ -1262,14 +1266,6 @@ function getRadarViewBox(mapName, level = "upper") {
   return RADAR_VIEWBOXES[mapName]?.[level] ?? { left: 0, top: 0, width: 1, height: 1 };
 }
 
-const RADAR_SCATTER_OFFSETS = [
-  { x: 0, y: 0 },
-  { x: 0.008, y: -0.006 },
-  { x: -0.007, y: 0.008 },
-  { x: 0.006, y: 0.007 },
-  { x: -0.008, y: -0.005 },
-];
-
 function hashRadarSeed(value = "") {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -1279,12 +1275,20 @@ function hashRadarSeed(value = "") {
   return Math.abs(hash);
 }
 
-function scatterRadarPosition(position, seed) {
-  const offset = RADAR_SCATTER_OFFSETS[hashRadarSeed(seed) % RADAR_SCATTER_OFFSETS.length];
+function seededRadarUnit(seed, salt = 0) {
+  const hash = hashRadarSeed(`${seed}:${salt}`);
+  return (hash % 10000) / 9999;
+}
+
+function spawnInRadarRegion(region, seed) {
+  const width = region.width ?? 0.06;
+  const height = region.height ?? 0.06;
+  const x = region.x - width / 2 + seededRadarUnit(seed, 1) * width;
+  const y = region.y - height / 2 + seededRadarUnit(seed, 2) * height;
   return {
-    ...position,
-    x: clamp(position.x + offset.x, 0.02, 0.98),
-    y: clamp(position.y + offset.y, 0.02, 0.98),
+    ...region,
+    x: clamp(x, 0.02, 0.98),
+    y: clamp(y, 0.02, 0.98),
   };
 }
 
@@ -1292,7 +1296,7 @@ function buildRadarMarkers(events = [], mapName) {
   const kills = events
     .filter((event) => event.kind === "kill")
     .map((event, index, source) => {
-      const position = scatterRadarPosition(
+      const position = spawnInRadarRegion(
         resolveRadarPosition(mapName, event.zone, event.site),
         `${mapName}:${event.zone ?? event.site ?? "unknown"}:${event.id}:${index}`
       );
