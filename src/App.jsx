@@ -240,9 +240,9 @@ const RADAR_ASSETS = {
 
 const RADAR_SITE_FALLBACKS = {
   Mirage: {
-    A: { x: 0.77, y: 0.22, level: "upper" },
-    B: { x: 0.22, y: 0.25, level: "upper" },
-    Mid: { x: 0.48, y: 0.48, level: "upper" },
+    A: { x: 0.74, y: 0.43, level: "upper" },
+    B: { x: 0.23, y: 0.69, level: "upper" },
+    Mid: { x: 0.54, y: 0.58, level: "upper" },
   },
   Inferno: {
     A: { x: 0.69, y: 0.36, level: "upper" },
@@ -278,18 +278,18 @@ const RADAR_SITE_FALLBACKS = {
 
 const RADAR_ZONE_POSITIONS = {
   Mirage: {
-    "A ramp": { x: 0.74, y: 0.19, level: "upper" },
-    palace: { x: 0.84, y: 0.18, level: "upper" },
-    ticket: { x: 0.81, y: 0.31, level: "upper" },
-    jungle: { x: 0.72, y: 0.32, level: "upper" },
-    apartments: { x: 0.18, y: 0.18, level: "upper" },
-    bench: { x: 0.19, y: 0.31, level: "upper" },
-    market: { x: 0.28, y: 0.29, level: "upper" },
-    van: { x: 0.23, y: 0.36, level: "upper" },
-    "top mid": { x: 0.44, y: 0.55, level: "upper" },
-    window: { x: 0.5, y: 0.45, level: "upper" },
-    connector: { x: 0.61, y: 0.47, level: "upper" },
-    catwalk: { x: 0.34, y: 0.43, level: "upper" },
+    "A ramp": { x: 0.72, y: 0.8, level: "upper" },
+    palace: { x: 0.73, y: 0.16, level: "upper" },
+    ticket: { x: 0.68, y: 0.39, level: "upper" },
+    jungle: { x: 0.63, y: 0.54, level: "upper" },
+    apartments: { x: 0.15, y: 0.18, level: "upper" },
+    bench: { x: 0.24, y: 0.68, level: "upper" },
+    market: { x: 0.28, y: 0.57, level: "upper" },
+    van: { x: 0.19, y: 0.61, level: "upper" },
+    "top mid": { x: 0.55, y: 0.67, level: "upper" },
+    window: { x: 0.55, y: 0.51, level: "upper" },
+    connector: { x: 0.64, y: 0.62, level: "upper" },
+    catwalk: { x: 0.37, y: 0.52, level: "upper" },
   },
   Inferno: {
     short: { x: 0.63, y: 0.35, level: "upper" },
@@ -2850,7 +2850,7 @@ function LiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_340px] gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_390px] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -3902,8 +3902,8 @@ function RadarPanel({
       )}
     >
       <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#050608] p-3">
-        <div className={classNames("relative aspect-square w-full", expanded ? "max-h-[78vh]" : "h-full")}>
-          <img src={assets.upper} alt={`${mapName} radar`} className="absolute inset-0 h-full w-full object-fill" draggable="false" />
+        <div className={classNames("relative aspect-square h-full max-w-full", expanded ? "max-h-[78vh]" : "")}>
+          <img src={assets.upper} alt={`${mapName} radar`} className="absolute inset-0 h-full w-full object-contain" draggable="false" />
           {upperBounds.ready && upperMarkers.map((marker) => (
             <RadarDeathMarker
               key={marker.id}
@@ -3919,7 +3919,7 @@ function RadarPanel({
           </div>
           {assets.lower && (
             <div className={classNames("absolute overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl", expanded ? "bottom-4 right-4 h-[38%] w-[38%]" : "bottom-3 right-3 h-[42%] w-[42%]")}>
-              <img src={assets.lower} alt={`${mapName} lower radar`} className="absolute inset-0 h-full w-full object-fill" draggable="false" />
+              <img src={assets.lower} alt={`${mapName} lower radar`} className="absolute inset-0 h-full w-full object-contain" draggable="false" />
               {lowerBounds.ready && lowerMarkers.map((marker) => (
                 <RadarDeathMarker
                   key={marker.id}
