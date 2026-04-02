@@ -384,6 +384,7 @@ const TIGHT_ZONE_TOKENS = [
   "boiler",
   "door",
   "decon",
+  "secret",
   "new box",
   "quad",
   "boost",
