@@ -247,7 +247,7 @@ const RADAR_VIEWBOXES = {
   },
   Nuke: {
     upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
-    lower: { left: 0.27, top: 0.15, width: 0.5, height: 0.7 },
+    lower: { left: 0.44, top: 0.27, width: 0.33, height: 0.56 },
   },
   Overpass: {
     upper: { left: 0.09, top: 0.03, width: 0.79, height: 0.93 },
