@@ -263,8 +263,8 @@ const RADAR_VIEWBOXES = {
   },
 };
 
-function radarRegion(x, y, width, height, level = "upper") {
-  return { x, y, width, height, level };
+function radarRegion(x, y, width, height, level = "upper", space = "view") {
+  return { x, y, width, height, level, space };
 }
 
 const RADAR_SITE_FALLBACKS = {
@@ -1302,11 +1302,21 @@ function seededRadarUnit(seed, salt = 0) {
   return (hash % 10000) / 9999;
 }
 
-function spawnInRadarRegion(region, seed) {
-  const width = (region.width ?? 0.06) * 0.62;
-  const height = (region.height ?? 0.06) * 0.62;
-  const x = region.x - width / 2 + seededRadarUnit(seed, 1) * width;
-  const y = region.y - height / 2 + seededRadarUnit(seed, 2) * height;
+function spawnInRadarRegion(region, seed, mapName) {
+  const level = region.level ?? "upper";
+  const viewBox = getRadarViewBox(mapName, level);
+  const localWidth = (region.width ?? 0.06) * 0.62;
+  const localHeight = (region.height ?? 0.06) * 0.62;
+  const localX = region.x - localWidth / 2 + seededRadarUnit(seed, 1) * localWidth;
+  const localY = region.y - localHeight / 2 + seededRadarUnit(seed, 2) * localHeight;
+  const x =
+    region.space === "absolute"
+      ? localX
+      : viewBox.left + clamp(localX, 0.02, 0.98) * viewBox.width;
+  const y =
+    region.space === "absolute"
+      ? localY
+      : viewBox.top + clamp(localY, 0.02, 0.98) * viewBox.height;
   return {
     ...region,
     x: clamp(x, 0.02, 0.98),
@@ -1320,7 +1330,8 @@ function buildRadarMarkers(events = [], mapName) {
     .map((event, index, source) => {
       const position = spawnInRadarRegion(
         resolveRadarPosition(mapName, event.zone, event.site),
-        `${mapName}:${event.zone ?? event.site ?? "unknown"}:${event.id}:${index}`
+        `${mapName}:${event.zone ?? event.site ?? "unknown"}:${event.id}:${index}`,
+        mapName
       );
       return {
         id: `${event.id}_${index}`,
@@ -3164,17 +3175,21 @@ function CoachLiveMatchView({
             <div className={classNames("text-[10px] uppercase tracking-[0.18em]", sideToneClasses(teamAState.side).text)}>{teamAState.side}</div>
           </div>
         </div>
-        <div className="text-center">
+        <div className="min-w-0 flex-1 text-center">
           <div className="font-display text-lg text-accent sm:text-2xl">{activeMap.mapName}</div>
           <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-muted">
             {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {liveStatusLabel ?? "Coach View"}{playbackStepLabel ? ` · ${playbackStepLabel}` : ""}
           </div>
           <div className={classNames("mt-1 numbers text-xl sm:text-2xl", roundClock <= 10 ? "text-red-400" : "text-text")}>{roundClockLabel}</div>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            {!mobileSite && <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />}
-            <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
-            <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
-            <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
+          <div className="mt-2 grid justify-center gap-1.5">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {!mobileSite && <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />}
+              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+              <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -3196,7 +3211,7 @@ function CoachLiveMatchView({
         )}
       >
         <CoachRosterColumn team={match.teamA} players={teamAPlayers} side={teamAState.side} mobile={mobileSite} />
-        <div className={classNames("grid min-h-0 gap-3 overflow-hidden", mobileSite ? "grid-rows-[minmax(0,1fr)_180px]" : "grid-rows-[minmax(0,1fr)_240px]")}>
+        <div className={classNames("grid min-h-0 gap-3 overflow-hidden", mobileSite ? "grid-rows-[minmax(0,1fr)_220px]" : "grid-rows-[minmax(0,1fr)_340px]")}>
           <Panel
             title={mobileSite ? "" : "Coach View"}
             subtitle={mobileSite ? "" : "Map-first live board with alive counts, zone kills, and compact player strips."}
@@ -3220,7 +3235,7 @@ function CoachLiveMatchView({
               showSummary={false}
             />
           </Panel>
-          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_220px]" : "grid-cols-[minmax(0,1fr)_340px]")}>
+          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_240px]" : "grid-cols-[minmax(0,1fr)_420px]")}>
             <Panel title={mobileSite ? "" : "Round Read"} subtitle={mobileSite ? "" : "Current call, bomb state, and pacing."} className="overflow-hidden p-3">
               <div className="grid h-full gap-3">
                 <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
