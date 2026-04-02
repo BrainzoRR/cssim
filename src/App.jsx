@@ -307,18 +307,18 @@ const RADAR_SITE_FALLBACKS = {
 
 const RADAR_ZONE_POSITIONS = {
   Mirage: {
-    "A ramp": radarRegion(0.61, 0.79, 0.08, 0.08),
-    palace: radarRegion(0.64, 0.18, 0.08, 0.1),
-    ticket: radarRegion(0.84, 0.43, 0.06, 0.08),
-    jungle: radarRegion(0.68, 0.54, 0.08, 0.08),
-    apartments: radarRegion(0.2, 0.16, 0.1, 0.1),
-    bench: radarRegion(0.19, 0.64, 0.05, 0.06),
-    market: radarRegion(0.29, 0.53, 0.08, 0.08),
-    van: radarRegion(0.15, 0.57, 0.06, 0.06),
-    "top mid": radarRegion(0.49, 0.69, 0.1, 0.08),
-    window: radarRegion(0.5, 0.52, 0.06, 0.08),
-    connector: radarRegion(0.61, 0.63, 0.08, 0.08),
-    catwalk: radarRegion(0.36, 0.53, 0.08, 0.08),
+    "A ramp": radarRegion(0.61, 0.79, 0.05, 0.05),
+    palace: radarRegion(0.64, 0.17, 0.05, 0.06),
+    ticket: radarRegion(0.81, 0.42, 0.05, 0.05),
+    jungle: radarRegion(0.69, 0.54, 0.05, 0.05),
+    apartments: radarRegion(0.2, 0.16, 0.06, 0.06),
+    bench: radarRegion(0.18, 0.63, 0.04, 0.04),
+    market: radarRegion(0.28, 0.53, 0.05, 0.05),
+    van: radarRegion(0.14, 0.57, 0.04, 0.04),
+    "top mid": radarRegion(0.49, 0.69, 0.06, 0.05),
+    window: radarRegion(0.49, 0.52, 0.04, 0.05),
+    connector: radarRegion(0.61, 0.63, 0.05, 0.05),
+    catwalk: radarRegion(0.37, 0.54, 0.05, 0.05),
   },
   Inferno: {
     short: radarRegion(0.6, 0.73, 0.06, 0.06),
@@ -362,18 +362,18 @@ const RADAR_ZONE_POSITIONS = {
     "short::Mid": radarRegion(0.4, 0.54, 0.08, 0.08),
   },
   Dust: {
-    long: radarRegion(0.18, 0.63, 0.12, 0.1),
-    catwalk: radarRegion(0.64, 0.25, 0.08, 0.08),
-    "A site": radarRegion(0.81, 0.18, 0.1, 0.08),
-    "short::A": radarRegion(0.71, 0.27, 0.08, 0.08),
-    tunnels: radarRegion(0.14, 0.1, 0.1, 0.08),
-    window: radarRegion(0.23, 0.18, 0.06, 0.06),
-    "B site": radarRegion(0.14, 0.18, 0.08, 0.08),
-    door: radarRegion(0.24, 0.27, 0.06, 0.08),
-    mid: radarRegion(0.5, 0.4, 0.08, 0.08),
-    xbox: radarRegion(0.58, 0.37, 0.06, 0.06),
-    "lower tunnels": radarRegion(0.38, 0.46, 0.08, 0.08),
-    "top mid": radarRegion(0.49, 0.3, 0.08, 0.08),
+    long: radarRegion(0.12, 0.57, 0.08, 0.08),
+    catwalk: radarRegion(0.68, 0.26, 0.05, 0.05),
+    "A site": radarRegion(0.8, 0.17, 0.06, 0.06),
+    "short::A": radarRegion(0.69, 0.27, 0.05, 0.05),
+    tunnels: radarRegion(0.22, 0.14, 0.06, 0.06),
+    window: radarRegion(0.21, 0.2, 0.05, 0.05),
+    "B site": radarRegion(0.12, 0.14, 0.06, 0.06),
+    door: radarRegion(0.34, 0.31, 0.05, 0.05),
+    mid: radarRegion(0.52, 0.39, 0.06, 0.06),
+    xbox: radarRegion(0.6, 0.38, 0.04, 0.04),
+    "lower tunnels": radarRegion(0.39, 0.47, 0.05, 0.05),
+    "top mid": radarRegion(0.5, 0.29, 0.05, 0.05),
   },
   Ancient: {
     "A main": radarRegion(0.24, 0.7, 0.1, 0.1),
@@ -3181,16 +3181,6 @@ function CoachLiveMatchView({
             {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {liveStatusLabel ?? "Coach View"}{playbackStepLabel ? ` · ${playbackStepLabel}` : ""}
           </div>
           <div className={classNames("mt-1 numbers text-xl sm:text-2xl", roundClock <= 10 ? "text-red-400" : "text-text")}>{roundClockLabel}</div>
-          <div className="mt-2 grid justify-center gap-1.5">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {!mobileSite && <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />}
-              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
-              <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
-            </div>
-          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="min-w-0 text-right">
@@ -3211,7 +3201,17 @@ function CoachLiveMatchView({
         )}
       >
         <CoachRosterColumn team={match.teamA} players={teamAPlayers} side={teamAState.side} mobile={mobileSite} />
-        <div className={classNames("grid min-h-0 gap-3 overflow-hidden", mobileSite ? "grid-rows-[minmax(0,1fr)_220px]" : "grid-rows-[minmax(0,1fr)_340px]")}>
+        <div className={classNames("grid min-h-0 gap-3 overflow-hidden", mobileSite ? "grid-rows-[auto_minmax(0,1fr)_260px]" : "grid-rows-[auto_minmax(0,1fr)_390px]")}>
+          <div className={classNames("panel flex flex-wrap items-center justify-between gap-2", mobileSite ? "rounded-none border-x-0 px-2 py-2" : "px-3 py-3")}>
+            <div className="flex flex-wrap items-center gap-2">
+              {!mobileSite && <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />}
+              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+              <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
+            </div>
+          </div>
           <Panel
             title={mobileSite ? "" : "Coach View"}
             subtitle={mobileSite ? "" : "Map-first live board with alive counts, zone kills, and compact player strips."}
@@ -3235,7 +3235,7 @@ function CoachLiveMatchView({
               showSummary={false}
             />
           </Panel>
-          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_240px]" : "grid-cols-[minmax(0,1fr)_420px]")}>
+          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_260px]" : "grid-cols-[minmax(0,1fr)_500px]")}>
             <Panel title={mobileSite ? "" : "Round Read"} subtitle={mobileSite ? "" : "Current call, bomb state, and pacing."} className="overflow-hidden p-3">
               <div className="grid h-full gap-3">
                 <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
@@ -3261,11 +3261,11 @@ function CoachLiveMatchView({
                 </div>
               </div>
             </Panel>
-            <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+            <div className="grid min-h-0 grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3">
               <Panel title={mobileSite ? "" : "Kill Feed"} subtitle={mobileSite ? "" : "Who killed whom and with what."} className="flex min-h-0 flex-col overflow-hidden p-3">
                 <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                   {killFeedEntries.length ? (
-                    killFeedEntries.slice(0, mobileSite ? 4 : 7).map((entry) => (
+                    killFeedEntries.slice(0, mobileSite ? 5 : 9).map((entry) => (
                       <div key={entry.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
                         <div className="flex items-center justify-between gap-3">
                           <div className="numbers text-[11px] text-accent">[{entry.clock}]</div>
@@ -4308,21 +4308,21 @@ function RadarImageStage({
             maxWidth: "none",
           }}
         />
+        {markers.map((marker) => (
+          <RadarDeathMarker
+            key={marker.id}
+            marker={marker}
+            victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
+            compact={compact}
+            expanded={expanded}
+            imageFrame={{ left: 0, top: 0, width: imageFrame.width, height: imageFrame.height }}
+            viewBox={viewBox}
+          />
+        ))}
       </div>
       <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border bg-surface/80 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-muted">
         {label}
       </div>
-      {markers.map((marker) => (
-        <RadarDeathMarker
-          key={marker.id}
-          marker={marker}
-          victimSide={marker.victimSide ?? sideLookup[marker.victimTeamKey]}
-          compact={compact}
-          expanded={expanded}
-          imageFrame={imageFrame}
-          viewBox={viewBox}
-        />
-      ))}
     </div>
   );
 }
