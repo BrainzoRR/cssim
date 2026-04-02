@@ -280,6 +280,14 @@ function radarAnchors(points, level = "upper", space = "view", radius = 0.022) {
   };
 }
 
+function radarPolygon(points, level = "upper", space = "absolute") {
+  return {
+    polygon: points,
+    level,
+    space,
+  };
+}
+
 const RADAR_SITE_FALLBACKS = {
   Mirage: {
     A: radarAnchors([[0.72, 0.49], [0.77, 0.43], [0.66, 0.58]]),
@@ -414,6 +422,149 @@ const RADAR_ZONE_POSITIONS = {
     connector: radarAnchors([[0.55, 0.44], [0.52, 0.43]]),
     water: radarAnchors([[0.57, 0.64], [0.54, 0.67]]),
     "top mid": radarAnchors([[0.46, 0.74], [0.43, 0.71]]),
+  },
+};
+
+const RADAR_ZONE_ALIASES = {
+  Mirage: {
+    "a ramp": "A Ramp",
+    palace: "Palace",
+    "a site": "A Site",
+    "b site": "B Site",
+    ticket: "Ticket Booth",
+    "ticket booth": "Ticket Booth",
+    jungle: "Jungle",
+    apartments: "B Apartments",
+    "b apartments": "B Apartments",
+    bench: "Bench",
+    market: "Market",
+    van: "Van",
+    mid: "Mid",
+    "top mid": "Top Mid",
+    window: "Sniper's Nest",
+    connector: "Connector",
+    catwalk: "Catwalk",
+    "site::a": "A Site",
+    "site::b": "B Site",
+    "site::mid": "Mid",
+  },
+  Inferno: {
+    short: "A Short",
+    library: "Library",
+    pit: "Pit",
+    "a site": "A Site",
+    "b site": "B Site",
+    site: "A Site",
+    banana: "Banana",
+    coffins: "Coffins",
+    "new box": "Quad",
+    dark: "Dark",
+    mid: "Mid",
+    arch: "Arch",
+    boiler: "Boiler",
+    lane: "Patio",
+    "site::a": "A Site",
+    "site::b": "B Site",
+    "site::mid": "Mid",
+  },
+  Dust: {
+    long: "A Long",
+    catwalk: "Catwalk",
+    "a site": "A Default Plant",
+    "short::a": "A Short",
+    tunnels: "Upper B Tunnels",
+    "upper tunnels": "Upper B Tunnels",
+    "lower tunnels": "Lower B Tunnels",
+    window: "B Window",
+    "b site": "B Default Plant",
+    "b doors": "B Doors",
+    door: "B Doors",
+    doors: "B Doors",
+    mid: "Mid",
+    xbox: "Xbox",
+    "top mid": "Top Mid",
+    "site::a": "A Default Plant",
+    "site::b": "B Default Plant",
+    "site::mid": "Mid",
+  },
+  Overpass: {
+    long: "A Long",
+    bathrooms: "Toilets",
+    "a site": "A Site",
+    "b site": "B Site",
+    truck: "Van",
+    monster: "Monster",
+    "short::b": "B Short",
+    pillar: "Pillar",
+    connector: "Connector",
+    fountain: "Fountain",
+    party: "Party",
+    "short::mid": "A Short",
+    "site::a": "A Site",
+    "site::b": "B Site",
+  },
+};
+
+const RADAR_ZONE_POLYGONS = {
+  Mirage: {
+    "A Ramp": radarPolygon([[0.675, 0.675], [0.7775, 0.6737], [0.7837, 0.55], [0.7412, 0.55], [0.74, 0.6075], [0.67, 0.6088]]),
+    Palace: radarPolygon([[0.6262, 0.8037], [0.8462, 0.8075], [0.8438, 0.6837], [0.9113, 0.6], [0.81, 0.6025], [0.8075, 0.7137], [0.685, 0.715], [0.6875, 0.7612], [0.6275, 0.7612]]),
+    "Ticket Booth": radarPolygon([[0.46, 0.7937], [0.4838, 0.8325], [0.4675, 0.86], [0.4113, 0.8325]]),
+    Jungle: radarPolygon([[0.3762, 0.6425], [0.49, 0.6525], [0.485, 0.5813], [0.3688, 0.5713]]),
+    "B Apartments": radarPolygon([[0.2225, 0.2062], [0.3987, 0.2087], [0.4012, 0.2675], [0.44, 0.27], [0.4437, 0.17], [0.22, 0.1625]]),
+    Bench: radarPolygon([[0.1037, 0.3212], [0.1638, 0.3237], [0.1737, 0.2213], [0.1013, 0.2238]]),
+    Market: radarPolygon([[0.1688, 0.4725], [0.335, 0.48], [0.33, 0.4275], [0.2813, 0.4288], [0.2725, 0.3887], [0.1663, 0.3875]]),
+    Van: radarPolygon([[0.16, 0.2188], [0.2213, 0.215], [0.2162, 0.165], [0.1663, 0.1725]]),
+    Mid: radarPolygon([[0.4462, 0.385], [0.7388, 0.3812], [0.735, 0.52], [0.5537, 0.5162], [0.5537, 0.49], [0.44, 0.4963]]),
+    "Top Mid": radarPolygon([[0.6412, 0.525], [0.7412, 0.5275], [0.7412, 0.3625], [0.6138, 0.3575]]),
+    "Sniper's Nest": radarPolygon([[0.3713, 0.545], [0.4175, 0.5525], [0.4188, 0.44], [0.385, 0.44]]),
+    Connector: radarPolygon([[0.4688, 0.585], [0.5375, 0.59], [0.5337, 0.4925], [0.4688, 0.4938]]),
+    Catwalk: radarPolygon([[0.45, 0.4375], [0.6713, 0.4375], [0.6737, 0.39], [0.4487, 0.3887]]),
+    "A Site": radarPolygon([[0.475, 0.8363], [0.6125, 0.8125], [0.625, 0.725], [0.4725, 0.74]]),
+    "B Site": radarPolygon([[0.1837, 0.33], [0.2725, 0.3337], [0.2787, 0.24], [0.1837, 0.24]]),
+  },
+  Inferno: {
+    "A Short": radarPolygon([[0.6825, 0.7937], [0.8237, 0.7975], [0.8237, 0.7375], [0.7212, 0.7388], [0.7238, 0.6875], [0.6763, 0.69]]),
+    Library: radarPolygon([[0.9, 0.565], [0.9575, 0.565], [0.96, 0.5062], [0.8988, 0.505]]),
+    Pit: radarPolygon([[0.8175, 0.8037], [0.9, 0.7675], [0.9437, 0.77], [0.9575, 0.8775], [0.8237, 0.88]]),
+    "A Site": radarPolygon([[0.7688, 0.6275], [0.7712, 0.735], [0.8413, 0.7338], [0.8425, 0.6225]]),
+    Banana: radarPolygon([[0.3975, 0.505], [0.3962, 0.4838], [0.4925, 0.3425], [0.5463, 0.3463], [0.5475, 0.3287], [0.6088, 0.3287], [0.625, 0.4125], [0.52, 0.405], [0.475, 0.4875], [0.4788, 0.5337], [0.4575, 0.56], [0.4275, 0.56]]),
+    Coffins: radarPolygon([[0.5062, 0.1725], [0.5413, 0.1775], [0.5387, 0.1325], [0.505, 0.1363]]),
+    Quad: radarPolygon([[0.4138, 0.2675], [0.45, 0.27], [0.4537, 0.235], [0.4138, 0.2338]]),
+    Dark: radarPolygon([[0.4, 0.155], [0.45, 0.1563], [0.45, 0.1225], [0.39, 0.1237]]),
+    Mid: radarPolygon([[0.4213, 0.6863], [0.675, 0.69], [0.6737, 0.6312], [0.4213, 0.6288]]),
+    Arch: radarPolygon([[0.765, 0.5238], [0.7963, 0.525], [0.7987, 0.4525], [0.7625, 0.4512]]),
+    Boiler: radarPolygon([[0.6412, 0.7212], [0.6825, 0.7212], [0.6875, 0.6875], [0.6425, 0.6875]]),
+    Patio: radarPolygon([[0.6787, 0.795], [0.7238, 0.8025], [0.7262, 0.7612], [0.6813, 0.7612]]),
+    "B Site": radarPolygon([[0.4375, 0.2675], [0.5313, 0.2662], [0.5337, 0.1688], [0.4387, 0.1713]]),
+  },
+  Dust: {
+    "A Long": radarPolygon([[0.8263, 0.4263], [0.855, 0.4375], [0.8325, 0.4925], [0.91, 0.4925], [0.9163, 0.2838], [0.8225, 0.275]]),
+    Catwalk: radarPolygon([[0.4938, 0.5925], [0.495, 0.3787], [0.5238, 0.3787], [0.5238, 0.595]]),
+    "A Default Plant": radarPolygon([[0.7887, 0.1862], [0.83, 0.1925], [0.8313, 0.1437], [0.7825, 0.1437]]),
+    "A Short": radarPolygon([[0.6687, 0.1625], [0.6675, 0.425], [0.515, 0.4213], [0.515, 0.3725], [0.605, 0.375], [0.6062, 0.1575]]),
+    "Upper B Tunnels": radarPolygon([[0.0675, 0.5025], [0.2938, 0.4938], [0.295, 0.4338], [0.1862, 0.4363], [0.1875, 0.4025], [0.06, 0.4075]]),
+    "Lower B Tunnels": radarPolygon([[0.2813, 0.4325], [0.4325, 0.4375], [0.4363, 0.3725], [0.2762, 0.3775]]),
+    "B Window": radarPolygon([[0.2462, 0.15], [0.2787, 0.15], [0.2762, 0.11], [0.2437, 0.1087]]),
+    "B Default Plant": radarPolygon([[0.2275, 0.1725], [0.2625, 0.1787], [0.2737, 0.1437], [0.2263, 0.1437]]),
+    "B Doors": radarPolygon([[0.2338, 0.265], [0.2712, 0.2662], [0.2712, 0.2087], [0.2325, 0.2062]]),
+    Mid: radarPolygon([[0.435, 0.5887], [0.4925, 0.5887], [0.4938, 0.4225], [0.4375, 0.42]]),
+    Xbox: radarPolygon([[0.4675, 0.425], [0.4975, 0.4275], [0.5012, 0.3862], [0.455, 0.385]]),
+    "Top Mid": radarPolygon([[0.4562, 0.6512], [0.5925, 0.675], [0.6038, 0.6025], [0.4437, 0.6025]]),
+  },
+  Overpass: {
+    "A Site": radarPolygon([[0.4175, 0.22], [0.515, 0.2625], [0.5725, 0.2125], [0.4487, 0.1563]]),
+    "A Long": radarPolygon([[0.1563, 0.6563], [0.1563, 0.3887], [0.26, 0.3312], [0.3212, 0.2125], [0.365, 0.2338], [0.305, 0.3425], [0.3025, 0.405], [0.2437, 0.4113], [0.2425, 0.5225], [0.2712, 0.525], [0.27, 0.7125], [0.305, 0.7813], [0.2362, 0.81]]),
+    Connector: radarPolygon([[0.4775, 0.5938], [0.5625, 0.6], [0.5613, 0.5575], [0.4888, 0.5587]]),
+    Party: radarPolygon([[0.3088, 0.675], [0.3088, 0.5262], [0.3638, 0.5262], [0.3762, 0.6887], [0.3287, 0.7125]]),
+    Fountain: radarPolygon([[0.4225, 0.7312], [0.455, 0.7175], [0.4525, 0.6813], [0.42, 0.6763], [0.3912, 0.7087]]),
+    Monster: radarPolygon([[0.795, 0.4675], [0.7887, 0.3875], [0.8425, 0.3962], [0.8363, 0.4625]]),
+    "B Short": radarPolygon([[0.7037, 0.425], [0.705, 0.385], [0.7525, 0.3862], [0.7512, 0.4612], [0.685, 0.4587]]),
+    Pillar: radarPolygon([[0.715, 0.3038], [0.7525, 0.3075], [0.7562, 0.3412], [0.7113, 0.3387]]),
+    "B Site": radarPolygon([[0.6675, 0.3538], [0.7288, 0.3538], [0.7225, 0.2875], [0.6613, 0.2938]]),
+    Toilets: radarPolygon([[0.3987, 0.4938], [0.425, 0.4163], [0.385, 0.3725], [0.3862, 0.3463], [0.4313, 0.3488], [0.4587, 0.3713], [0.4637, 0.49], [0.4313, 0.525], [0.3912, 0.525]]),
+    Van: radarPolygon([[0.3663, 0.1487], [0.4238, 0.1563], [0.4288, 0.135], [0.375, 0.1275]]),
+    "A Short": radarPolygon([[0.36, 0.3113], [0.3875, 0.265], [0.505, 0.3262], [0.54, 0.5112], [0.4925, 0.5563], [0.4612, 0.495], [0.4637, 0.375], [0.4325, 0.3475], [0.3638, 0.345]]),
   },
 };
 
@@ -1282,15 +1433,81 @@ function classNames(...values) {
   return values.filter(Boolean).join(" ");
 }
 
-function resolveRadarPosition(mapName, zone, site) {
-  const mapZones = RADAR_ZONE_POSITIONS[mapName] ?? {};
-  if (zone) {
-    const siteKey = site ? `${zone}::${site}` : null;
-    if (siteKey && mapZones[siteKey]) {
-      return mapZones[siteKey];
+function normalizeRadarLookupKey(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function pointInPolygon(point, polygon) {
+  let inside = false;
+
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const [xi, yi] = polygon[index];
+    const [xj, yj] = polygon[previous];
+    const intersects =
+      yi > point[1] !== yj > point[1] &&
+      point[0] < ((xj - xi) * (point[1] - yi)) / ((yj - yi) || 0.000001) + xi;
+
+    if (intersects) {
+      inside = !inside;
     }
-    if (mapZones[zone]) {
-      return mapZones[zone];
+  }
+
+  return inside;
+}
+
+function polygonBounds(polygon) {
+  return polygon.reduce(
+    (bounds, [x, y]) => ({
+      minX: Math.min(bounds.minX, x),
+      maxX: Math.max(bounds.maxX, x),
+      minY: Math.min(bounds.minY, y),
+      maxY: Math.max(bounds.maxY, y),
+    }),
+    { minX: 1, maxX: 0, minY: 1, maxY: 0 }
+  );
+}
+
+function polygonCentroid(polygon) {
+  if (!polygon?.length) {
+    return [0.5, 0.5];
+  }
+
+  const [sumX, sumY] = polygon.reduce(
+    (totals, [x, y]) => [totals[0] + x, totals[1] + y],
+    [0, 0]
+  );
+
+  return [sumX / polygon.length, sumY / polygon.length];
+}
+
+function resolveRadarPosition(mapName, zone, site) {
+  const normalizedZone = normalizeRadarLookupKey(zone);
+  const normalizedSite = normalizeRadarLookupKey(site);
+  const siteScopedKey = normalizedZone && normalizedSite ? `${normalizedZone}::${normalizedSite}` : "";
+  const polygonAliases = RADAR_ZONE_ALIASES[mapName] ?? {};
+  const polygonMap = RADAR_ZONE_POLYGONS[mapName] ?? {};
+
+  const polygonLabel =
+    (siteScopedKey && polygonAliases[siteScopedKey]) ||
+    polygonAliases[normalizedZone] ||
+    (normalizedSite && polygonAliases[`site::${normalizedSite}`]) ||
+    null;
+
+  if (polygonLabel && polygonMap[polygonLabel]) {
+    return polygonMap[polygonLabel];
+  }
+
+  const mapZones = RADAR_ZONE_POSITIONS[mapName] ?? {};
+  const normalizedZoneEntries = Object.fromEntries(
+    Object.entries(mapZones).map(([key, value]) => [normalizeRadarLookupKey(key), value])
+  );
+
+  if (normalizedZone) {
+    if (siteScopedKey && normalizedZoneEntries[siteScopedKey]) {
+      return normalizedZoneEntries[siteScopedKey];
+    }
+    if (normalizedZoneEntries[normalizedZone]) {
+      return normalizedZoneEntries[normalizedZone];
     }
   }
 
@@ -1318,6 +1535,40 @@ function seededRadarUnit(seed, salt = 0) {
 function spawnInRadarRegion(region, seed, mapName) {
   const level = region.level ?? "upper";
   const viewBox = getRadarViewBox(mapName, level);
+  if (region.polygon?.length) {
+    const polygon = region.polygon;
+    const bounds = polygonBounds(polygon);
+    let sampledPoint = null;
+
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const sample = [
+        bounds.minX + seededRadarUnit(seed, attempt * 2 + 1) * Math.max(0.0001, bounds.maxX - bounds.minX),
+        bounds.minY + seededRadarUnit(seed, attempt * 2 + 2) * Math.max(0.0001, bounds.maxY - bounds.minY),
+      ];
+
+      if (pointInPolygon(sample, polygon)) {
+        sampledPoint = sample;
+        break;
+      }
+    }
+
+    const [localX, localY] = sampledPoint ?? polygonCentroid(polygon);
+    const x =
+      region.space === "absolute"
+        ? localX
+        : viewBox.left + clamp(localX, 0.02, 0.98) * viewBox.width;
+    const y =
+      region.space === "absolute"
+        ? localY
+        : viewBox.top + clamp(localY, 0.02, 0.98) * viewBox.height;
+
+    return {
+      ...region,
+      x: clamp(x, 0.02, 0.98),
+      y: clamp(y, 0.02, 0.98),
+    };
+  }
+
   const anchorIndex = region.anchors?.length
     ? Math.min(region.anchors.length - 1, Math.floor(seededRadarUnit(seed, 0) * region.anchors.length))
     : -1;
