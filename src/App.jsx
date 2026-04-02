@@ -240,26 +240,26 @@ const RADAR_ASSETS = {
 
 const RADAR_VIEWBOXES = {
   Mirage: {
-    upper: { left: 0.1, top: 0.08, width: 0.82, height: 0.84 },
+    upper: { left: 0.08, top: 0.07, width: 0.84, height: 0.85 },
   },
   Inferno: {
-    upper: { left: 0.06, top: 0.05, width: 0.87, height: 0.88 },
+    upper: { left: 0.1, top: 0.03, width: 0.78, height: 0.92 },
   },
   Nuke: {
-    upper: { left: 0.2, top: 0.22, width: 0.76, height: 0.54 },
-    lower: { left: 0.2, top: 0.22, width: 0.76, height: 0.54 },
+    upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
+    lower: { left: 0.27, top: 0.15, width: 0.5, height: 0.7 },
   },
   Overpass: {
-    upper: { left: 0.2, top: 0.03, width: 0.65, height: 0.92 },
+    upper: { left: 0.09, top: 0.03, width: 0.79, height: 0.93 },
   },
   Dust: {
-    upper: { left: 0.03, top: 0.02, width: 0.94, height: 0.95 },
+    upper: { left: 0.02, top: 0.03, width: 0.95, height: 0.91 },
   },
   Ancient: {
-    upper: { left: 0.08, top: 0.08, width: 0.85, height: 0.84 },
+    upper: { left: 0.14, top: 0.09, width: 0.73, height: 0.79 },
   },
   Anubis: {
-    upper: { left: 0.16, top: 0.06, width: 0.73, height: 0.92 },
+    upper: { left: 0.16, top: 0.05, width: 0.74, height: 0.91 },
   },
 };
 
@@ -307,100 +307,100 @@ const RADAR_SITE_FALLBACKS = {
 
 const RADAR_ZONE_POSITIONS = {
   Mirage: {
-    "A ramp": radarRegion(0.63, 0.86, 0.1, 0.1),
-    palace: radarRegion(0.67, 0.18, 0.12, 0.12),
-    ticket: radarRegion(0.84, 0.43, 0.08, 0.12),
-    jungle: radarRegion(0.71, 0.52, 0.12, 0.12),
-    apartments: radarRegion(0.17, 0.18, 0.14, 0.12),
-    bench: radarRegion(0.21, 0.67, 0.06, 0.08),
-    market: radarRegion(0.3, 0.57, 0.1, 0.1),
-    van: radarRegion(0.15, 0.58, 0.08, 0.08),
-    "top mid": radarRegion(0.52, 0.68, 0.14, 0.12),
-    window: radarRegion(0.53, 0.53, 0.08, 0.08),
-    connector: radarRegion(0.63, 0.66, 0.1, 0.1),
-    catwalk: radarRegion(0.39, 0.52, 0.12, 0.1),
+    "A ramp": radarRegion(0.61, 0.79, 0.08, 0.08),
+    palace: radarRegion(0.64, 0.18, 0.08, 0.1),
+    ticket: radarRegion(0.84, 0.43, 0.06, 0.08),
+    jungle: radarRegion(0.68, 0.54, 0.08, 0.08),
+    apartments: radarRegion(0.2, 0.16, 0.1, 0.1),
+    bench: radarRegion(0.19, 0.64, 0.05, 0.06),
+    market: radarRegion(0.29, 0.53, 0.08, 0.08),
+    van: radarRegion(0.15, 0.57, 0.06, 0.06),
+    "top mid": radarRegion(0.49, 0.69, 0.1, 0.08),
+    window: radarRegion(0.5, 0.52, 0.06, 0.08),
+    connector: radarRegion(0.61, 0.63, 0.08, 0.08),
+    catwalk: radarRegion(0.36, 0.53, 0.08, 0.08),
   },
   Inferno: {
-    short: radarRegion(0.61, 0.7, 0.08, 0.08),
-    library: radarRegion(0.76, 0.63, 0.08, 0.08),
-    pit: radarRegion(0.83, 0.76, 0.12, 0.12),
-    "site::A": radarRegion(0.74, 0.74, 0.12, 0.12),
-    banana: radarRegion(0.29, 0.44, 0.14, 0.18),
-    coffins: radarRegion(0.2, 0.16, 0.08, 0.08),
-    "new box": radarRegion(0.25, 0.17, 0.08, 0.08),
-    dark: radarRegion(0.19, 0.23, 0.08, 0.08),
-    mid: radarRegion(0.47, 0.58, 0.12, 0.12),
-    arch: radarRegion(0.62, 0.56, 0.08, 0.08),
-    boiler: radarRegion(0.52, 0.72, 0.1, 0.1),
-    lane: radarRegion(0.42, 0.71, 0.1, 0.1),
+    short: radarRegion(0.6, 0.73, 0.06, 0.06),
+    library: radarRegion(0.78, 0.66, 0.06, 0.06),
+    pit: radarRegion(0.85, 0.8, 0.08, 0.08),
+    "site::A": radarRegion(0.74, 0.76, 0.1, 0.1),
+    banana: radarRegion(0.22, 0.44, 0.1, 0.14),
+    coffins: radarRegion(0.16, 0.11, 0.06, 0.06),
+    "new box": radarRegion(0.21, 0.14, 0.06, 0.06),
+    dark: radarRegion(0.14, 0.2, 0.06, 0.06),
+    mid: radarRegion(0.48, 0.58, 0.08, 0.08),
+    arch: radarRegion(0.61, 0.56, 0.06, 0.06),
+    boiler: radarRegion(0.51, 0.72, 0.08, 0.08),
+    lane: radarRegion(0.43, 0.73, 0.08, 0.08),
   },
   Nuke: {
-    outside: radarRegion(0.24, 0.47, 0.14, 0.16),
-    mini: radarRegion(0.44, 0.38, 0.08, 0.08),
-    hut: radarRegion(0.56, 0.47, 0.08, 0.1),
-    heaven: radarRegion(0.61, 0.37, 0.08, 0.08),
-    ramp: radarRegion(0.21, 0.5, 0.14, 0.14, "lower"),
-    decon: radarRegion(0.69, 0.55, 0.08, 0.08, "lower"),
-    "double doors": radarRegion(0.78, 0.52, 0.08, 0.08, "lower"),
-    "site::B": radarRegion(0.57, 0.53, 0.14, 0.12, "lower"),
-    garage: radarRegion(0.28, 0.41, 0.08, 0.08),
-    secret: radarRegion(0.39, 0.63, 0.12, 0.1, "lower"),
-    lobby: radarRegion(0.69, 0.58, 0.12, 0.12),
+    outside: radarRegion(0.18, 0.55, 0.1, 0.1),
+    mini: radarRegion(0.56, 0.51, 0.06, 0.06),
+    hut: radarRegion(0.63, 0.57, 0.06, 0.06),
+    heaven: radarRegion(0.61, 0.37, 0.06, 0.06),
+    ramp: radarRegion(0.49, 0.56, 0.08, 0.08, "lower"),
+    decon: radarRegion(0.71, 0.6, 0.06, 0.06, "lower"),
+    "double doors": radarRegion(0.59, 0.28, 0.06, 0.06, "lower"),
+    "site::B": radarRegion(0.56, 0.47, 0.08, 0.08, "lower"),
+    garage: radarRegion(0.08, 0.55, 0.06, 0.06),
+    secret: radarRegion(0.31, 0.54, 0.08, 0.08, "lower"),
+    lobby: radarRegion(0.79, 0.58, 0.08, 0.08),
   },
   Overpass: {
-    long: radarRegion(0.75, 0.22, 0.14, 0.14),
-    bathrooms: radarRegion(0.63, 0.23, 0.12, 0.1),
-    truck: radarRegion(0.82, 0.31, 0.08, 0.08),
-    "site::A": radarRegion(0.78, 0.24, 0.12, 0.12),
-    monster: radarRegion(0.18, 0.74, 0.12, 0.14),
-    "short::B": radarRegion(0.37, 0.67, 0.1, 0.1),
-    pillar: radarRegion(0.27, 0.64, 0.08, 0.08),
-    "site::B": radarRegion(0.24, 0.59, 0.14, 0.12),
-    connector: radarRegion(0.46, 0.46, 0.1, 0.1),
-    fountain: radarRegion(0.54, 0.26, 0.08, 0.08),
-    party: radarRegion(0.66, 0.13, 0.1, 0.1),
-    "short::Mid": radarRegion(0.4, 0.54, 0.1, 0.1),
+    long: radarRegion(0.75, 0.23, 0.1, 0.1),
+    bathrooms: radarRegion(0.64, 0.23, 0.08, 0.08),
+    truck: radarRegion(0.82, 0.31, 0.06, 0.06),
+    "site::A": radarRegion(0.79, 0.24, 0.1, 0.1),
+    monster: radarRegion(0.18, 0.74, 0.1, 0.12),
+    "short::B": radarRegion(0.37, 0.67, 0.08, 0.08),
+    pillar: radarRegion(0.27, 0.64, 0.06, 0.06),
+    "site::B": radarRegion(0.24, 0.59, 0.1, 0.1),
+    connector: radarRegion(0.46, 0.46, 0.08, 0.08),
+    fountain: radarRegion(0.54, 0.26, 0.06, 0.06),
+    party: radarRegion(0.66, 0.13, 0.08, 0.08),
+    "short::Mid": radarRegion(0.4, 0.54, 0.08, 0.08),
   },
   Dust: {
-    long: radarRegion(0.18, 0.65, 0.16, 0.14),
-    catwalk: radarRegion(0.62, 0.25, 0.12, 0.12),
-    "A site": radarRegion(0.79, 0.19, 0.14, 0.1),
-    "short::A": radarRegion(0.69, 0.28, 0.1, 0.1),
-    tunnels: radarRegion(0.16, 0.1, 0.14, 0.12),
-    window: radarRegion(0.23, 0.18, 0.08, 0.08),
-    "B site": radarRegion(0.15, 0.17, 0.12, 0.1),
-    door: radarRegion(0.24, 0.27, 0.08, 0.1),
-    mid: radarRegion(0.5, 0.4, 0.12, 0.1),
-    xbox: radarRegion(0.58, 0.38, 0.08, 0.08),
-    "lower tunnels": radarRegion(0.39, 0.49, 0.12, 0.12),
-    "top mid": radarRegion(0.49, 0.29, 0.12, 0.1),
+    long: radarRegion(0.18, 0.63, 0.12, 0.1),
+    catwalk: radarRegion(0.64, 0.25, 0.08, 0.08),
+    "A site": radarRegion(0.81, 0.18, 0.1, 0.08),
+    "short::A": radarRegion(0.71, 0.27, 0.08, 0.08),
+    tunnels: radarRegion(0.14, 0.1, 0.1, 0.08),
+    window: radarRegion(0.23, 0.18, 0.06, 0.06),
+    "B site": radarRegion(0.14, 0.18, 0.08, 0.08),
+    door: radarRegion(0.24, 0.27, 0.06, 0.08),
+    mid: radarRegion(0.5, 0.4, 0.08, 0.08),
+    xbox: radarRegion(0.58, 0.37, 0.06, 0.06),
+    "lower tunnels": radarRegion(0.38, 0.46, 0.08, 0.08),
+    "top mid": radarRegion(0.49, 0.3, 0.08, 0.08),
   },
   Ancient: {
-    "A main": radarRegion(0.22, 0.73, 0.14, 0.12),
-    donut: radarRegion(0.31, 0.48, 0.1, 0.1),
-    temple: radarRegion(0.74, 0.44, 0.12, 0.1),
-    "site::A": radarRegion(0.73, 0.36, 0.14, 0.14),
-    cave: radarRegion(0.16, 0.21, 0.12, 0.12),
-    lane: radarRegion(0.24, 0.33, 0.1, 0.1),
-    "back site": radarRegion(0.13, 0.31, 0.1, 0.1),
-    ramp: radarRegion(0.38, 0.31, 0.12, 0.1),
-    mid: radarRegion(0.47, 0.53, 0.12, 0.12),
-    "red room": radarRegion(0.45, 0.63, 0.1, 0.1),
-    boost: radarRegion(0.41, 0.48, 0.1, 0.1),
+    "A main": radarRegion(0.24, 0.7, 0.1, 0.1),
+    donut: radarRegion(0.39, 0.47, 0.07, 0.07),
+    temple: radarRegion(0.72, 0.44, 0.08, 0.08),
+    "site::A": radarRegion(0.73, 0.38, 0.1, 0.1),
+    cave: radarRegion(0.17, 0.22, 0.08, 0.08),
+    lane: radarRegion(0.24, 0.33, 0.08, 0.08),
+    "back site": radarRegion(0.13, 0.31, 0.08, 0.08),
+    ramp: radarRegion(0.35, 0.31, 0.08, 0.08),
+    mid: radarRegion(0.46, 0.53, 0.09, 0.09),
+    "red room": radarRegion(0.47, 0.61, 0.08, 0.08),
+    boost: radarRegion(0.41, 0.47, 0.07, 0.07),
   },
   Anubis: {
-    "A main": radarRegion(0.18, 0.76, 0.16, 0.14),
-    heaven: radarRegion(0.28, 0.3, 0.1, 0.12),
-    "bridge::A": radarRegion(0.35, 0.39, 0.12, 0.08),
-    "site::A": radarRegion(0.24, 0.56, 0.14, 0.14),
-    canal: radarRegion(0.84, 0.22, 0.1, 0.12),
-    pillar: radarRegion(0.72, 0.31, 0.1, 0.1),
-    "site::B": radarRegion(0.81, 0.18, 0.12, 0.1),
-    "bridge::B": radarRegion(0.66, 0.33, 0.12, 0.08),
-    mid: radarRegion(0.5, 0.53, 0.12, 0.1),
-    connector: radarRegion(0.55, 0.44, 0.1, 0.08),
-    water: radarRegion(0.57, 0.63, 0.12, 0.1),
-    "top mid": radarRegion(0.45, 0.72, 0.1, 0.1),
+    "A main": radarRegion(0.24, 0.8, 0.12, 0.1),
+    heaven: radarRegion(0.28, 0.24, 0.08, 0.08),
+    "bridge::A": radarRegion(0.36, 0.39, 0.08, 0.06),
+    "site::A": radarRegion(0.22, 0.56, 0.1, 0.1),
+    canal: radarRegion(0.84, 0.19, 0.08, 0.08),
+    pillar: radarRegion(0.73, 0.3, 0.08, 0.08),
+    "site::B": radarRegion(0.81, 0.19, 0.08, 0.08),
+    "bridge::B": radarRegion(0.66, 0.34, 0.08, 0.06),
+    mid: radarRegion(0.51, 0.53, 0.08, 0.08),
+    connector: radarRegion(0.55, 0.44, 0.08, 0.06),
+    water: radarRegion(0.57, 0.64, 0.09, 0.08),
+    "top mid": radarRegion(0.46, 0.74, 0.08, 0.08),
   },
 };
 
@@ -497,6 +497,7 @@ function loadStoredSnapshot() {
       siteMode: null,
       liveLayoutMode: "broadcast",
       livePresentationMode: "semi",
+      livePlaybackRate: 1.25,
     };
   }
 
@@ -511,6 +512,7 @@ function loadStoredSnapshot() {
         siteMode: null,
         liveLayoutMode: "broadcast",
         livePresentationMode: "semi",
+        livePlaybackRate: 1.25,
       };
     }
 
@@ -537,6 +539,7 @@ function loadStoredSnapshot() {
       siteMode: parsed.siteMode ?? null,
       liveLayoutMode: parsed.liveLayoutMode ?? "broadcast",
       livePresentationMode: parsed.livePresentationMode ?? "semi",
+      livePlaybackRate: parsed.livePlaybackRate ?? 1.25,
     };
   } catch {
     return {
@@ -547,6 +550,7 @@ function loadStoredSnapshot() {
       siteMode: null,
       liveLayoutMode: "broadcast",
       livePresentationMode: "semi",
+      livePlaybackRate: 1.25,
     };
   }
 }
@@ -693,6 +697,7 @@ function App() {
   const [siteMode, setSiteMode] = useState(initialSnapshot.siteMode ?? null);
   const [liveLayoutMode, setLiveLayoutMode] = useState(initialSnapshot.liveLayoutMode ?? "broadcast");
   const [livePresentationMode, setLivePresentationMode] = useState(initialSnapshot.livePresentationMode ?? "semi");
+  const [livePlaybackRate, setLivePlaybackRate] = useState(initialSnapshot.livePlaybackRate ?? 1.25);
   const [roundPlayback, setRoundPlayback] = useState(null);
   const [teamDraft, setTeamDraft] = useState(
     deepClone(state.teams.find((team) => team.id === state.selectedTeamId) ?? createBlankTeam())
@@ -768,11 +773,12 @@ function App() {
       siteMode,
       liveLayoutMode,
       livePresentationMode,
+      livePlaybackRate,
       lastSavedAt: new Date().toISOString(),
     });
     window.localStorage.setItem(STORAGE_KEY, serialized);
     setLastSavedAt(JSON.parse(serialized).lastSavedAt);
-  }, [state, matchSetup, language, siteMode, liveLayoutMode, livePresentationMode]);
+  }, [state, matchSetup, language, siteMode, liveLayoutMode, livePresentationMode, livePlaybackRate]);
 
   useEffect(() => {
     const phoneLiveMode =
@@ -838,7 +844,8 @@ function App() {
       return undefined;
     }
 
-    const speed = SPEED_OPTIONS.find((option) => option.id === state.currentMatch.speed)?.intervalMs ?? 5000;
+    const baseSpeed = SPEED_OPTIONS.find((option) => option.id === state.currentMatch.speed)?.intervalMs ?? 5000;
+    const speed = Math.round(baseSpeed * livePlaybackRate);
     const startProgressTimer = (durationMs) => {
       roundStartedAtRef.current = Date.now();
       progressIntervalRef.current = window.setInterval(() => {
@@ -862,13 +869,20 @@ function App() {
         currentMatch.speed === "slow"
           ? { preRollMs: 520, postRollMs: 760, minFrameMs: 300, maxFrameMs: 520, extraBudgetMs: 1200 }
           : { preRollMs: 900, postRollMs: 1100, minFrameMs: 520, maxFrameMs: 900, extraBudgetMs: 2200 };
+      const scaledPreset = {
+        preRollMs: Math.round(playbackPreset.preRollMs * livePlaybackRate),
+        postRollMs: Math.round(playbackPreset.postRollMs * livePlaybackRate),
+        minFrameMs: Math.round(playbackPreset.minFrameMs * livePlaybackRate),
+        maxFrameMs: Math.round(playbackPreset.maxFrameMs * livePlaybackRate),
+        extraBudgetMs: Math.round(playbackPreset.extraBudgetMs * livePlaybackRate),
+      };
       const frameDelay = clamp(
-        Math.floor((speed + playbackPreset.extraBudgetMs) / Math.max(1, playbackFrames.length || 1)),
-        playbackPreset.minFrameMs,
-        playbackPreset.maxFrameMs
+        Math.floor((speed + scaledPreset.extraBudgetMs) / Math.max(1, playbackFrames.length || 1)),
+        scaledPreset.minFrameMs,
+        scaledPreset.maxFrameMs
       );
       const liveRoundDuration =
-        playbackPreset.preRollMs + playbackFrames.length * frameDelay + playbackPreset.postRollMs;
+        scaledPreset.preRollMs + playbackFrames.length * frameDelay + scaledPreset.postRollMs;
       const commitDelay = Math.max(speed, liveRoundDuration);
 
       startProgressTimer(commitDelay);
@@ -886,7 +900,7 @@ function App() {
               ? { ...current, frameIndex: index }
               : current
           );
-        }, playbackPreset.preRollMs + frameDelay * index);
+        }, scaledPreset.preRollMs + frameDelay * index);
         playbackTimersRef.current.push(timerId);
       });
 
@@ -935,7 +949,7 @@ function App() {
       playbackTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
       playbackTimersRef.current = [];
     };
-  }, [state.currentMatch, livePresentationMode]);
+  }, [state.currentMatch, livePresentationMode, livePlaybackRate]);
 
   const selectedTeam = state.teams.find((team) => team.id === state.selectedTeamId) ?? null;
   const filteredHistory = historyFilter
@@ -1132,6 +1146,8 @@ function App() {
                 onLayoutModeChange={setLiveLayoutMode}
                 presentationMode={livePresentationMode}
                 onPresentationModeChange={setLivePresentationMode}
+                playbackRate={livePlaybackRate}
+                onPlaybackRateChange={setLivePlaybackRate}
                 roundPlayback={roundPlayback}
                 fullscreen={phoneLiveMode}
                 siteMode={siteMode}
@@ -1287,8 +1303,8 @@ function seededRadarUnit(seed, salt = 0) {
 }
 
 function spawnInRadarRegion(region, seed) {
-  const width = region.width ?? 0.06;
-  const height = region.height ?? 0.06;
+  const width = (region.width ?? 0.06) * 0.62;
+  const height = (region.height ?? 0.06) * 0.62;
   const x = region.x - width / 2 + seededRadarUnit(seed, 1) * width;
   const y = region.y - height / 2 + seededRadarUnit(seed, 2) * height;
   return {
@@ -2687,6 +2703,8 @@ function LiveMatchView({
   onLayoutModeChange,
   presentationMode = "semi",
   onPresentationModeChange,
+  playbackRate = 1.25,
+  onPlaybackRateChange,
   roundPlayback = null,
   fullscreen = false,
   siteMode = "desktop",
@@ -2721,6 +2739,13 @@ function LiveMatchView({
     : latestRound?.timeline ?? [];
   const radarMarkers = buildRadarMarkers(roundTimelineEvents, activeMap.mapName);
   const latestRadarMarker = radarMarkers[radarMarkers.length - 1] ?? null;
+  const killFeedEntries = roundTimelineEvents
+    .filter((entry) => entry.kind === "kill")
+    .map((entry) => ({
+      ...entry,
+      weaponLabel: entry.weaponLabel ?? "UTIL",
+    }))
+    .reverse();
   const feedEntries = playbackSummary
     ? (playbackSummary.timeline ?? [])
         .slice(0, Math.max(0, roundPlayback.frameIndex + 1))
@@ -2774,6 +2799,9 @@ function LiveMatchView({
         onSiteModeChange={onSiteModeChange}
         radarMarkers={radarMarkers}
         latestRadarMarker={latestRadarMarker}
+        killFeedEntries={killFeedEntries}
+        playbackRate={playbackRate}
+        onPlaybackRateChange={onPlaybackRateChange}
       />
     );
   }
@@ -2804,6 +2832,8 @@ function LiveMatchView({
         onSiteModeChange={onSiteModeChange}
         radarMarkers={radarMarkers}
         latestRadarMarker={latestRadarMarker}
+        playbackRate={playbackRate}
+        onPlaybackRateChange={onPlaybackRateChange}
       />
     );
   }
@@ -2826,6 +2856,7 @@ function LiveMatchView({
             <div className="flex items-center gap-2">
               <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
               <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+              <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
               <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} mobileSite={mobileSite} />
             </div>
           }
@@ -3094,8 +3125,11 @@ function CoachLiveMatchView({
   onPresentationModeChange,
   currentPlaybackEvent = null,
   feedEntries = [],
+  killFeedEntries = [],
   liveStatusLabel = null,
   playbackStepLabel = null,
+  playbackRate = 1.25,
+  onPlaybackRateChange,
   mobileSite = false,
   siteMode = "desktop",
   onSiteModeChange,
@@ -3139,6 +3173,7 @@ function CoachLiveMatchView({
           <div className="mt-2 flex items-center justify-center gap-2">
             {!mobileSite && <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />}
             <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+            <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
             <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
           </div>
         </div>
@@ -3161,7 +3196,7 @@ function CoachLiveMatchView({
         )}
       >
         <CoachRosterColumn team={match.teamA} players={teamAPlayers} side={teamAState.side} mobile={mobileSite} />
-        <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_140px] gap-3 overflow-hidden">
+        <div className={classNames("grid min-h-0 gap-3 overflow-hidden", mobileSite ? "grid-rows-[minmax(0,1fr)_180px]" : "grid-rows-[minmax(0,1fr)_240px]")}>
           <Panel
             title={mobileSite ? "" : "Coach View"}
             subtitle={mobileSite ? "" : "Map-first live board with alive counts, zone kills, and compact player strips."}
@@ -3182,9 +3217,10 @@ function CoachLiveMatchView({
               latestMarker={latestRadarMarker}
               sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
               showSidebar={false}
+              showSummary={false}
             />
           </Panel>
-          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_200px]" : "grid-cols-[minmax(0,1fr)_260px]")}>
+          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_220px]" : "grid-cols-[minmax(0,1fr)_340px]")}>
             <Panel title={mobileSite ? "" : "Round Read"} subtitle={mobileSite ? "" : "Current call, bomb state, and pacing."} className="overflow-hidden p-3">
               <div className="grid h-full gap-3">
                 <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
@@ -3210,16 +3246,50 @@ function CoachLiveMatchView({
                 </div>
               </div>
             </Panel>
-            <Panel title={mobileSite ? "" : "Live Feed"} subtitle={mobileSite ? "" : "Recent calls for casting."} className="flex min-h-0 flex-col overflow-hidden p-3">
-              <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {(feedEntries.length ? feedEntries : activeMap.allLogs.slice(0, 8)).slice(0, mobileSite ? 4 : 6).map((log) => (
-                  <div key={log.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
-                    <div className="numbers text-[11px] text-accent">[{log.clock}] {`R${log.roundNumber}`}</div>
-                    <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
+            <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+              <Panel title={mobileSite ? "" : "Kill Feed"} subtitle={mobileSite ? "" : "Who killed whom and with what."} className="flex min-h-0 flex-col overflow-hidden p-3">
+                <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                  {killFeedEntries.length ? (
+                    killFeedEntries.slice(0, mobileSite ? 4 : 7).map((entry) => (
+                      <div key={entry.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="numbers text-[11px] text-accent">[{entry.clock}]</div>
+                          <div
+                            className={classNames(
+                              "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]",
+                              entry.victimSide === "CT" ? "bg-sky-500/10 text-sky-300" : "bg-accent/10 text-accent"
+                            )}
+                          >
+                            {entry.victimSide === "CT" ? "CT down" : "T down"}
+                          </div>
+                        </div>
+                        <div className="mt-1 text-sm leading-5 text-text">
+                          <span className="font-semibold text-text">{entry.killerNickname ?? "Unknown"}</span>{" "}
+                          <span className="text-accent">[{entry.weaponLabel ?? "UTIL"}]</span>{" "}
+                          <span className="text-muted">vs</span>{" "}
+                          <span className="font-semibold text-text">{entry.victimNickname ?? "Unknown"}</span>
+                        </div>
+                        <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted">{entry.zone ?? entry.site ?? "mid"}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted">
+                      Waiting for the first frag.
+                    </div>
+                  )}
+                </div>
+              </Panel>
+              <Panel title={mobileSite ? "" : "Live Feed"} subtitle={mobileSite ? "" : "Recent calls for casting."} className="flex min-h-0 flex-col overflow-hidden p-3">
+                <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                  {(feedEntries.length ? feedEntries : activeMap.allLogs.slice(0, 8)).slice(0, mobileSite ? 4 : 6).map((log) => (
+                    <div key={log.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
+                      <div className="numbers text-[11px] text-accent">[{log.clock}] {`R${log.roundNumber}`}</div>
+                      <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            </div>
           </div>
         </div>
         <CoachRosterColumn team={match.teamB} players={teamBPlayers} side={teamBState.side} reverse mobile={mobileSite} />
@@ -3384,6 +3454,37 @@ function PresentationModeSwitch({ mode, onChange }) {
   );
 }
 
+function PlaybackSpeedSwitch({ value, onChange, compact = false }) {
+  const options = [
+    { value: 0.85, label: "Fast" },
+    { value: 1, label: "1x" },
+    { value: 1.25, label: "Slow" },
+    { value: 1.55, label: "Slower" },
+    { value: 1.85, label: "Slowest" },
+  ];
+
+  return (
+    <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange?.(option.value)}
+          className={classNames(
+            "rounded-lg border px-3 py-1.5 transition",
+            compact ? "text-[11px]" : "text-xs uppercase tracking-[0.14em]",
+            Math.abs(value - option.value) < 0.001
+              ? "border-accent bg-accent/10 text-accent"
+              : "border-transparent text-muted hover:text-text"
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PhoneLandscapeLiveMatchView({
   match,
   activeMap,
@@ -3398,6 +3499,8 @@ function PhoneLandscapeLiveMatchView({
   onLayoutModeChange,
   presentationMode = "semi",
   onPresentationModeChange,
+  playbackRate = 1.25,
+  onPlaybackRateChange,
   currentPlaybackEvent = null,
   feedEntries = [],
   liveStatusLabel = null,
@@ -3446,6 +3549,8 @@ function PhoneLandscapeLiveMatchView({
         onSiteModeChange={onSiteModeChange}
         radarMarkers={radarMarkers}
         latestRadarMarker={latestRadarMarker}
+        playbackRate={playbackRate}
+        onPlaybackRateChange={onPlaybackRateChange}
       />
     );
   }
@@ -3493,6 +3598,7 @@ function PhoneLandscapeLiveMatchView({
             </div>
             <div className="mt-2 flex items-center justify-end gap-2">
               <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+              <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
               <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
             </div>
           </div>
@@ -3673,6 +3779,8 @@ function MobileLiveMatchView({
   onPaneChange,
   presentationMode = "semi",
   onPresentationModeChange,
+  playbackRate = 1.25,
+  onPlaybackRateChange,
   currentPlaybackEvent = null,
   feedEntries = [],
   liveStatusLabel = null,
@@ -3697,6 +3805,7 @@ function MobileLiveMatchView({
           <div className="flex items-center justify-between gap-1">
             <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
             <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+            <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
           </div>
         </div>
         <div className="panel rounded-2xl p-2">
@@ -4211,11 +4320,13 @@ function RadarPanel({
   compact = false,
   expanded = false,
   showSidebar = !compact,
+  showSummary = true,
 }) {
   const assets = RADAR_ASSETS[mapName];
   const upperMarkers = markers.filter((marker) => marker.level !== "lower");
   const lowerMarkers = markers.filter((marker) => marker.level === "lower");
-  const compactStage = compact || !showSidebar;
+  const compactStage = compact;
+  const splitLevels = Boolean(assets?.lower);
 
   if (!assets?.upper) {
     return (
@@ -4230,27 +4341,44 @@ function RadarPanel({
       className={classNames(
         "grid h-full min-h-0 gap-3",
         compact || !showSidebar
-          ? "grid-cols-1 grid-rows-[minmax(0,1fr)_auto]"
+          ? showSummary
+            ? "grid-cols-1 grid-rows-[minmax(0,1fr)_auto]"
+            : "grid-cols-1"
           : expanded
             ? "grid-cols-[minmax(0,1fr)_260px]"
             : "grid-cols-[minmax(0,1fr)_176px]"
       )}
     >
       <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#050608] p-3">
-        <div className={classNames("relative h-full w-full", compactStage ? "max-w-[460px]" : "", expanded ? "max-h-[78vh]" : "")}>
-          <RadarImageStage
-            src={assets.upper}
-            alt={`${mapName} radar`}
-            mapName={mapName}
-            level="upper"
-            markers={upperMarkers}
-            sideLookup={sideLookup}
-            compact={compact}
-            expanded={expanded}
-            label="Upper"
-          />
-          {assets.lower && (
-            <div className={classNames("absolute overflow-hidden rounded-xl border border-border bg-[#050608] shadow-2xl", expanded ? "bottom-4 right-4 h-[38%] w-[38%]" : "bottom-3 right-3 h-[42%] w-[42%]")}>
+        <div
+          className={classNames(
+            "grid h-full w-full min-h-0 gap-3",
+            splitLevels
+              ? expanded
+                ? "grid-cols-[minmax(0,1fr)_240px]"
+                : compactStage
+                  ? "grid-cols-[minmax(0,1fr)_140px]"
+                  : "grid-cols-[minmax(0,1fr)_180px]"
+              : "grid-cols-1",
+            compactStage ? "max-w-[560px]" : "",
+            expanded ? "max-h-[78vh]" : ""
+          )}
+        >
+          <div className="min-h-0 overflow-hidden rounded-xl">
+            <RadarImageStage
+              src={assets.upper}
+              alt={`${mapName} radar`}
+              mapName={mapName}
+              level="upper"
+              markers={upperMarkers}
+              sideLookup={sideLookup}
+              compact={compact}
+              expanded={expanded}
+              label="Upper"
+            />
+          </div>
+          {splitLevels && (
+            <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-[#050608]">
               <RadarImageStage
                 src={assets.lower}
                 alt={`${mapName} lower radar`}
@@ -4266,7 +4394,7 @@ function RadarPanel({
           )}
         </div>
       </div>
-      {(compact || !showSidebar) && (
+      {(compact || !showSidebar) && showSummary && (
         <div className="rounded-2xl border border-border bg-card/60 px-3 py-2">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Last Frag</div>

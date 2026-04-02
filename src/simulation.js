@@ -139,6 +139,135 @@ export const MAP_ZONES = {
   },
 };
 
+const MAP_ROUTE_PRESETS = {
+  Mirage: {
+    A: {
+      entry: ["A ramp", "palace"],
+      hold: ["ticket", "jungle"],
+      support: ["connector", "top mid"],
+      retake: ["ticket", "jungle", "connector"],
+      postPlant: ["A ramp", "palace", "jungle"],
+    },
+    B: {
+      entry: ["apartments", "bench"],
+      hold: ["market", "van"],
+      support: ["catwalk", "window"],
+      retake: ["market", "van", "catwalk"],
+      postPlant: ["apartments", "bench", "van"],
+    },
+    Mid: { entry: ["top mid"], hold: ["window", "connector", "catwalk"], support: ["top mid"] },
+    lurk: ["window", "connector", "apartments"],
+  },
+  Inferno: {
+    A: {
+      entry: ["lane", "boiler", "short"],
+      hold: ["site", "pit", "library"],
+      support: ["arch", "mid"],
+      retake: ["library", "short", "pit", "site"],
+      postPlant: ["pit", "short", "site", "library"],
+    },
+    B: {
+      entry: ["banana"],
+      hold: ["new box", "dark", "coffins"],
+      support: ["arch", "mid"],
+      retake: ["coffins", "dark", "banana"],
+      postPlant: ["banana", "new box", "dark"],
+    },
+    Mid: { entry: ["mid"], hold: ["boiler", "arch"], support: ["banana", "short"] },
+    lurk: ["boiler", "arch", "banana"],
+  },
+  Nuke: {
+    A: {
+      entry: ["lobby", "mini", "hut"],
+      hold: ["heaven", "outside"],
+      support: ["garage"],
+      retake: ["mini", "hut", "heaven"],
+      postPlant: ["outside", "hut", "mini"],
+    },
+    B: {
+      entry: ["ramp", "decon", "double doors"],
+      hold: ["site", "secret"],
+      support: ["lobby"],
+      retake: ["decon", "double doors", "secret"],
+      postPlant: ["ramp", "site", "secret"],
+    },
+    Mid: { entry: ["outside", "garage"], hold: ["secret", "lobby"], support: ["mini"] },
+    lurk: ["outside", "garage", "secret"],
+  },
+  Dust: {
+    A: {
+      entry: ["long", "catwalk", "short"],
+      hold: ["A site"],
+      support: ["top mid", "xbox"],
+      retake: ["short", "catwalk", "A site"],
+      postPlant: ["long", "catwalk", "A site"],
+    },
+    B: {
+      entry: ["tunnels", "door"],
+      hold: ["B site", "window"],
+      support: ["lower tunnels"],
+      retake: ["door", "window", "B site"],
+      postPlant: ["tunnels", "window", "B site"],
+    },
+    Mid: { entry: ["top mid", "mid"], hold: ["xbox", "catwalk", "lower tunnels"], support: ["door"] },
+    lurk: ["xbox", "lower tunnels", "catwalk"],
+  },
+  Overpass: {
+    A: {
+      entry: ["long", "bathrooms"],
+      hold: ["truck", "site"],
+      support: ["connector", "fountain"],
+      retake: ["truck", "site", "bathrooms"],
+      postPlant: ["long", "bathrooms", "site"],
+    },
+    B: {
+      entry: ["monster", "short"],
+      hold: ["pillar", "site"],
+      support: ["connector"],
+      retake: ["short", "pillar", "site"],
+      postPlant: ["monster", "pillar", "site"],
+    },
+    Mid: { entry: ["party", "fountain"], hold: ["connector", "short"], support: ["bathrooms"] },
+    lurk: ["connector", "party", "bathrooms"],
+  },
+  Ancient: {
+    A: {
+      entry: ["A main", "ramp", "donut"],
+      hold: ["site", "temple"],
+      support: ["mid"],
+      retake: ["donut", "temple", "site"],
+      postPlant: ["A main", "donut", "site"],
+    },
+    B: {
+      entry: ["cave", "lane"],
+      hold: ["back site", "ramp"],
+      support: ["mid"],
+      retake: ["ramp", "back site", "lane"],
+      postPlant: ["cave", "lane", "back site"],
+    },
+    Mid: { entry: ["mid", "red room"], hold: ["boost", "donut"], support: ["A main"] },
+    lurk: ["red room", "donut", "mid"],
+  },
+  Anubis: {
+    A: {
+      entry: ["A main", "bridge", "heaven"],
+      hold: ["site"],
+      support: ["connector", "top mid"],
+      retake: ["bridge", "heaven", "site"],
+      postPlant: ["A main", "bridge", "site"],
+    },
+    B: {
+      entry: ["canal", "bridge", "pillar"],
+      hold: ["site"],
+      support: ["water"],
+      retake: ["bridge", "pillar", "site"],
+      postPlant: ["canal", "pillar", "site"],
+    },
+    Mid: { entry: ["top mid", "mid"], hold: ["connector", "water"], support: ["bridge"] },
+    lurk: ["connector", "water", "bridge"],
+  },
+};
+
 function uniqueZones(zones) {
   return [...new Set(zones.filter(Boolean))];
 }
@@ -165,6 +294,63 @@ function getZoneBuckets(mapName, site) {
 }
 
 function buildRoundZonePlan(mapName, strategy, plantSite) {
+  const presets = MAP_ROUTE_PRESETS[mapName];
+  if (presets) {
+    const target = presets[plantSite];
+    const opposite = presets[oppositeSite(plantSite)];
+    const mid = presets.Mid;
+    const fake = strategy.id === "fake" ? presets[strategy.site] : target;
+    if (target && opposite && mid) {
+      const targetRetake = uniqueZones(target.retake ?? [...target.hold, ...target.support]);
+      const targetPostPlant = uniqueZones(target.postPlant ?? [...target.hold, ...target.support]);
+      if (strategy.id === "split") {
+        return {
+          early: uniqueZones([...mid.entry, ...mid.hold, ...target.entry.slice(0, 1)]),
+          utility: uniqueZones([...mid.hold, ...target.entry, ...target.support]),
+          mid: uniqueZones([...mid.hold, ...target.support]),
+          hit: uniqueZones([...target.entry, ...target.hold, ...target.support, ...mid.hold.slice(0, 1)]),
+          retake: uniqueZones([...targetRetake, ...mid.hold]),
+          postPlant: uniqueZones([...targetPostPlant, ...mid.hold.slice(0, 1)]),
+          lurk: uniqueZones([...(presets.lurk ?? []), ...opposite.entry.slice(0, 1)]),
+        };
+      }
+
+      if (strategy.id === "midControl") {
+        return {
+          early: uniqueZones([...mid.entry, ...mid.hold]),
+          utility: uniqueZones([...mid.hold, ...target.entry.slice(0, 1)]),
+          mid: uniqueZones([...mid.hold, ...mid.support]),
+          hit: uniqueZones([...target.support, ...target.entry, ...target.hold]),
+          retake: uniqueZones([...targetRetake, ...mid.hold.slice(0, 1)]),
+          postPlant: targetPostPlant,
+          lurk: uniqueZones([...(presets.lurk ?? []), ...opposite.entry.slice(0, 1)]),
+        };
+      }
+
+      if (strategy.id === "fake") {
+        return {
+          early: uniqueZones([...fake.entry, ...mid.entry]),
+          utility: uniqueZones([...fake.entry, ...fake.support, ...mid.hold]),
+          mid: uniqueZones([...mid.hold, ...mid.support]),
+          hit: uniqueZones([...target.entry, ...target.hold, ...target.support]),
+          retake: uniqueZones([...targetRetake, ...mid.hold.slice(0, 1)]),
+          postPlant: targetPostPlant,
+          lurk: uniqueZones([...(presets.lurk ?? []), ...fake.entry.slice(0, 1)]),
+        };
+      }
+
+      return {
+        early: uniqueZones([...mid.entry, ...target.entry.slice(0, 1)]),
+        utility: uniqueZones([...target.entry, ...target.support]),
+        mid: uniqueZones([...mid.hold, ...target.support]),
+        hit: uniqueZones([...target.entry, ...target.hold, ...target.support]),
+        retake: uniqueZones([...targetRetake, ...mid.hold.slice(0, 1)]),
+        postPlant: targetPostPlant,
+        lurk: uniqueZones([...(presets.lurk ?? []), ...opposite.entry.slice(0, 1)]),
+      };
+    }
+  }
+
   const target = getZoneBuckets(mapName, plantSite);
   const opposite = getZoneBuckets(mapName, oppositeSite(plantSite));
   const mid = getZoneBuckets(mapName, "Mid");
@@ -2537,6 +2723,8 @@ function resolveDuelEvent({
       meta: {
         killerId: winner.id,
         victimId: loser.id,
+        killerNickname: winner.nickname,
+        victimNickname: loser.nickname,
         killerTeamKey: winnerTeamKey,
         victimTeamKey: loserTeamKey,
         victimSide: loserTeam.side,
@@ -2545,6 +2733,7 @@ function resolveDuelEvent({
         traded,
         zone,
         site,
+        weaponLabel: getWeapon(winner.roundLoadout.weaponId).label,
       },
     }
   );
@@ -2657,6 +2846,8 @@ function maybeLurkKill({
       meta: {
         killerId: lurker.id,
         victimId: target.id,
+        killerNickname: lurker.nickname,
+        victimNickname: target.nickname,
         killerTeamKey: teamKey,
         victimTeamKey: enemyKey,
         victimSide: teamStates[enemyKey].side,
@@ -2664,6 +2855,7 @@ function maybeLurkKill({
         lurkKill: true,
         zone,
         site: "Mid",
+        weaponLabel: getWeapon(lurker.roundLoadout.weaponId).label,
       },
     }
   );
