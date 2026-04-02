@@ -139,6 +139,84 @@ export const MAP_ZONES = {
   },
 };
 
+function uniqueZones(zones) {
+  return [...new Set(zones.filter(Boolean))];
+}
+
+function oppositeSite(site) {
+  return site === "A" ? "B" : "A";
+}
+
+function getZoneBuckets(mapName, site) {
+  const zones = MAP_ZONES[mapName]?.[site] ?? [];
+  if (site === "Mid") {
+    return {
+      entries: zones.slice(0, 2),
+      pivots: zones.slice(2),
+      all: zones,
+    };
+  }
+
+  return {
+    entries: zones.slice(0, 2),
+    anchors: zones.slice(2),
+    all: zones,
+  };
+}
+
+function buildRoundZonePlan(mapName, strategy, plantSite) {
+  const target = getZoneBuckets(mapName, plantSite);
+  const opposite = getZoneBuckets(mapName, oppositeSite(plantSite));
+  const mid = getZoneBuckets(mapName, "Mid");
+  const fakeSite = strategy.id === "fake" ? getZoneBuckets(mapName, strategy.site) : target;
+
+  if (strategy.id === "split") {
+    return {
+      early: uniqueZones([...mid.entries, ...target.entries]),
+      utility: uniqueZones([...mid.pivots, ...target.entries]),
+      mid: uniqueZones([...mid.all, ...target.entries]),
+      hit: uniqueZones([...target.entries, ...mid.pivots, ...target.anchors]),
+      retake: uniqueZones([...target.anchors, ...mid.all]),
+      postPlant: uniqueZones([...target.anchors, ...mid.pivots]),
+      lurk: uniqueZones([...opposite.entries, ...mid.pivots]),
+    };
+  }
+
+  if (strategy.id === "midControl") {
+    return {
+      early: uniqueZones([...mid.entries, ...mid.pivots]),
+      utility: uniqueZones(mid.all),
+      mid: uniqueZones(mid.all),
+      hit: uniqueZones([...target.entries, ...target.anchors]),
+      retake: uniqueZones([...target.anchors, ...mid.pivots]),
+      postPlant: uniqueZones([...target.anchors, ...target.entries.slice(0, 1)]),
+      lurk: uniqueZones([...mid.pivots, ...opposite.entries]),
+    };
+  }
+
+  if (strategy.id === "fake") {
+    return {
+      early: uniqueZones([...fakeSite.entries, ...mid.entries]),
+      utility: uniqueZones([...fakeSite.entries, ...mid.pivots]),
+      mid: uniqueZones(mid.all),
+      hit: uniqueZones([...target.entries, ...target.anchors]),
+      retake: uniqueZones([...target.anchors, ...target.entries]),
+      postPlant: uniqueZones([...target.anchors, ...target.entries.slice(0, 1)]),
+      lurk: uniqueZones([...mid.pivots, ...fakeSite.entries]),
+    };
+  }
+
+  return {
+    early: uniqueZones([...mid.entries, ...target.entries.slice(0, 1)]),
+    utility: uniqueZones([...target.entries, ...target.anchors.slice(0, 1)]),
+    mid: uniqueZones([...mid.pivots, ...target.entries]),
+    hit: uniqueZones([...target.entries, ...target.anchors]),
+    retake: uniqueZones([...target.anchors, ...target.entries.slice(1), ...mid.pivots]),
+    postPlant: uniqueZones([...target.anchors, ...target.entries.slice(0, 1)]),
+    lurk: uniqueZones([...mid.pivots, ...opposite.entries.slice(0, 1)]),
+  };
+}
+
 const LOSS_BONUSES = [1400, 1900, 2400, 2900, 3400];
 
 const WIN_PAYOUTS = {
@@ -1978,12 +2056,14 @@ function buildTWinProbability(tTeamState, ctTeamState, mapName, tLoadoutValue, c
 
 function chooseStrategy(mapName, tTeamState) {
   const mapConfig = MAP_CONFIGS[mapName];
+  const splitSite = Math.random() < 0.5 ? "A" : "B";
+  const fakeSite = Math.random() < 0.5 ? "A" : "B";
   const options = [
     { id: "executeA", label: "execute A", site: "A", weight: 1.05 * mapConfig.entryWeight },
     { id: "executeB", label: "execute B", site: "B", weight: 1.04 * mapConfig.utilityWeight },
-    { id: "split", label: "split", site: Math.random() < 0.5 ? "A" : "B", weight: 0.94 },
+    { id: "split", label: `split ${splitSite}`, site: splitSite, weight: 0.94 },
     { id: "midControl", label: "mid control", site: "Mid", weight: 0.9 * mapConfig.awpWeight },
-    { id: "fake", label: "fake", site: Math.random() < 0.5 ? "A" : "B", weight: 0.82 * mapConfig.lurkWeight },
+    { id: "fake", label: `fake ${fakeSite}`, site: fakeSite, weight: 0.82 * mapConfig.lurkWeight },
   ];
 
   const weighted = options.map((option) => ({
@@ -2020,6 +2100,45 @@ function elapsedLog(logs, elapsed, label, kind = "event", options = {}) {
 function pickZone(mapName, site) {
   const zonePool = MAP_ZONES[mapName][site] ?? MAP_ZONES[mapName].Mid;
   return pick(zonePool);
+}
+
+function pickPlannedZone(roundPlan, lane, fallbackZones = [], options = {}) {
+  const lanePool = roundPlan?.[lane]?.length ? roundPlan[lane] : fallbackZones;
+  if (!lanePool.length) {
+    return fallbackZones[0] ?? "mid";
+  }
+
+  if (
+    options.preferTrade &&
+    options.lastDeath?.zone &&
+    lanePool.includes(options.lastDeath.zone) &&
+    Math.random() < 0.6
+  ) {
+    return options.lastDeath.zone;
+  }
+
+  const anchorIndex = Math.min(
+    lanePool.length - 1,
+    Math.max(0, options.index ?? Math.floor(lanePool.length / 2))
+  );
+  const anchorZone = lanePool[anchorIndex];
+  if (Math.random() < 0.72) {
+    return anchorZone;
+  }
+
+  return pick(lanePool);
+}
+
+function strategyCallLabel(teamName, strategy, mapName, plantSite) {
+  if (strategy.id === "midControl") {
+    return `${teamName} ${strategy.label} on ${mapName} — pressure through mid before the ${plantSite} split`;
+  }
+
+  if (strategy.id === "fake") {
+    return `${teamName} ${strategy.label} on ${mapName} — show ${strategy.site} then hit ${plantSite}`;
+  }
+
+  return `${teamName} ${strategy.label} on ${mapName} — hit toward ${plantSite}`;
 }
 
 function playerPhaseWeight(player, phase, side, range) {
@@ -2090,6 +2209,7 @@ function maybeUtilityDamage({
   elapsed,
   mapName,
   site,
+  roundPlan,
   roundFlags,
   firstKillTaken,
   lastDeath,
@@ -2113,7 +2233,9 @@ function maybeUtilityDamage({
       : "incendiary";
   consumeUtility(thrower, grenadeType);
   const target = pickCombatant(defendingTeam, "site", "close");
-  const utilityZone = pickZone(mapName, site);
+  const utilityZone = pickPlannedZone(roundPlan, "utility", MAP_ZONES[mapName][site] ?? MAP_ZONES[mapName].Mid, {
+    lastDeath,
+  });
   const damage = Math.round(rand(18, 44) * (thrower.utility / 90));
   target.hp = clamp(target.hp - damage, 0, 100);
   thrower.stats.damage += damage;
@@ -2157,6 +2279,7 @@ function maybeUtilityDamage({
       victimId: target.id,
       killerId: thrower.id,
       teamKey: defendingTeamKey,
+      zone: utilityZone,
     };
     elapsedLog(
       logs,
@@ -2293,6 +2416,7 @@ function resolveDuelEvent({
   range,
   mapName,
   site,
+  roundPlan,
   logs,
   elapsed,
   roundFlags,
@@ -2301,6 +2425,7 @@ function resolveDuelEvent({
   lastDeath,
   tacticalPenalty,
   timeline,
+  duelIndex = 0,
 }) {
   const attackerTeam = teamStates[attackerTeamKey];
   const defenderTeam = teamStates[defenderTeamKey];
@@ -2385,7 +2510,21 @@ function resolveDuelEvent({
 
   const traded = updateTrade(lastDeath, winnerTeamKey, loser, roundFlags);
   const supportChip = maybeSupportChipDamage(loserTeam, loser.id, winner, roundFlags);
-  const zone = pickZone(mapName, site);
+  const lane =
+    phase === "early"
+      ? "early"
+      : phase === "retake"
+        ? winnerTeam.side === "CT"
+          ? "retake"
+          : "postPlant"
+        : phase === "mid"
+          ? "mid"
+          : "hit";
+  const zone = pickPlannedZone(roundPlan, lane, MAP_ZONES[mapName][site] ?? MAP_ZONES[mapName].Mid, {
+    lastDeath,
+    preferTrade: traded || phase === "retake",
+    index: duelIndex,
+  });
   const prefix = traded ? `${winner.nickname} trades out ${loser.nickname}` : `${winner.nickname} picks off ${loser.nickname}`;
   elapsedLog(
     logs,
@@ -2448,6 +2587,7 @@ function resolveDuelEvent({
       victimId: loser.id,
       killerId: winner.id,
       teamKey: loserTeamKey,
+      zone,
     },
     tacticalPenalty,
   };
@@ -2458,6 +2598,7 @@ function maybeLurkKill({
   enemyKey,
   teamStates,
   mapName,
+  roundPlan,
   logs,
   timeline,
   elapsed,
@@ -2501,7 +2642,9 @@ function maybeLurkKill({
     roundFlags[lurker.id].openingKill = true;
   }
 
-  const zone = pickZone(mapName, "Mid");
+  const zone = pickPlannedZone(roundPlan, "lurk", MAP_ZONES[mapName].Mid, {
+    lastDeath,
+  });
 
   elapsedLog(
     logs,
@@ -2528,7 +2671,7 @@ function maybeLurkKill({
   return {
     elapsed: elapsed + Math.round(rand(4, 8)),
     firstKillTaken: true,
-    lastDeath: { victimId: target.id, killerId: lurker.id, teamKey: enemyKey },
+    lastDeath: { victimId: target.id, killerId: lurker.id, teamKey: enemyKey, zone },
   };
 }
 
@@ -2685,7 +2828,13 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
   let firstKillTaken = false;
   let lastDeath = null;
   let bombPlanted = false;
-  let plantSite = strategy.site === "Mid" ? (Math.random() < 0.5 ? "A" : "B") : strategy.site;
+  let plantSite =
+    strategy.id === "fake"
+      ? oppositeSite(strategy.site)
+      : strategy.site === "Mid"
+        ? (Math.random() < 0.5 ? "A" : "B")
+        : strategy.site;
+  const roundPlan = buildRoundZonePlan(mapName, strategy, plantSite);
 
   if (roundContext.timeoutCalled === "teamA" || roundContext.timeoutCalled === "teamB") {
     const timeoutTeam = roundContext.timeoutCalled === "teamA" ? teamStates.teamA : teamStates.teamB;
@@ -2704,7 +2853,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
   elapsedLog(
     logs,
     elapsed,
-    `${teamStates[tKey].team.name} ${strategy.label} on ${mapName} — ${strategy.site === "Mid" ? "pressure through mid" : `hit toward ${strategy.site}`}`,
+    strategyCallLabel(teamStates[tKey].team.name, strategy, mapName, plantSite),
     "strategy",
     {
       timeline,
@@ -2737,6 +2886,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     elapsed: elapsed + 3,
     mapName,
     site: plantSite,
+    roundPlan,
     roundFlags,
     firstKillTaken,
     lastDeath,
@@ -2754,6 +2904,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     elapsed: elapsed + 4,
     mapName,
     site: plantSite,
+    roundPlan,
     roundFlags,
     firstKillTaken,
     lastDeath,
@@ -2773,10 +2924,13 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
   if (earlyAttacker && earlyDefender) {
     const flashSupport = maybeFlashSupport(teamStates[earlyAttackerKey]);
     if (flashSupport) {
+      const flashZone = pickPlannedZone(roundPlan, "early", MAP_ZONES[mapName][plantSite] ?? MAP_ZONES[mapName].Mid, {
+        lastDeath,
+      });
       elapsedLog(
         logs,
         elapsed + 4,
-        `${flashSupport.nickname} flashes ${pickZone(mapName, plantSite)}, blinding ${earlyDefender.nickname} for ${round(rand(0.9, 1.6), 1)}s`,
+        `${flashSupport.nickname} flashes ${flashZone}, blinding ${earlyDefender.nickname} for ${round(rand(0.9, 1.6), 1)}s`,
         "flash",
         {
           timeline,
@@ -2784,6 +2938,8 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
           meta: {
             actorId: flashSupport.id,
             victimId: earlyDefender.id,
+            zone: flashZone,
+            site: plantSite,
           },
         }
       );
@@ -2799,6 +2955,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       range: earlyRange,
       mapName,
       site: strategy.site === "Mid" ? plantSite : strategy.site,
+      roundPlan,
       logs,
       elapsed: elapsed + 5,
       roundFlags,
@@ -2807,6 +2964,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       lastDeath,
       tacticalPenalty,
       timeline,
+      duelIndex: 0,
     });
     elapsed = duelResult.elapsed;
     firstKillTaken = duelResult.firstKillTaken;
@@ -2820,6 +2978,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     enemyKey: lurkEnemyKey,
     teamStates,
     mapName,
+    roundPlan,
     logs,
     timeline,
     elapsed,
@@ -2925,10 +3084,16 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
 
     const flashSupport = maybeFlashSupport(teamStates[attackerKey]);
     if (flashSupport) {
+      const flashZone = pickPlannedZone(
+        roundPlan,
+        bombPlanted ? "retake" : "hit",
+        MAP_ZONES[mapName][plantSite] ?? MAP_ZONES[mapName].Mid,
+        { lastDeath, index: duelIndex }
+      );
       elapsedLog(
         logs,
         elapsed + 1,
-        `${flashSupport.nickname} sets up the peek with a pop flash into ${pickZone(mapName, plantSite)}`,
+        `${flashSupport.nickname} sets up the peek with a pop flash into ${flashZone}`,
         "flash",
         {
           timeline,
@@ -2936,6 +3101,8 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
           meta: {
             actorId: flashSupport.id,
             victimId: defender.id,
+            zone: flashZone,
+            site: plantSite,
           },
         }
       );
@@ -2951,6 +3118,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       range,
       mapName,
       site: plantSite,
+      roundPlan,
       logs,
       elapsed: elapsed + 2,
       roundFlags,
@@ -2959,6 +3127,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       lastDeath,
       tacticalPenalty,
       timeline,
+      duelIndex,
     });
 
     elapsed = duelResult.elapsed;

@@ -724,7 +724,7 @@ function App() {
 
   const handleSiteModeChange = (mode) => {
     setSiteMode(mode);
-    setLiveLayoutMode(mode === "mobile" ? "phone" : "broadcast");
+    setLiveLayoutMode(mode === "mobile" ? "coach" : "broadcast");
   };
 
   useEffect(() => {
@@ -1030,9 +1030,15 @@ function App() {
         ? "results"
         : state.activeView;
     const liveFocus = resolvedActiveView === "live" && state.currentMatch;
-    const effectiveLiveLayout = siteMode === "mobile" ? "phone" : liveLayoutMode;
+    const effectiveLiveLayout =
+      siteMode === "mobile"
+        ? liveLayoutMode === "coach"
+          ? "coach"
+          : "phone"
+        : liveLayoutMode;
     const mobileSite = siteMode === "mobile";
-    const phoneLiveMode = liveFocus && effectiveLiveLayout === "phone";
+    const phoneLiveMode =
+      liveFocus && (effectiveLiveLayout === "phone" || (mobileSite && effectiveLiveLayout === "coach"));
     return (
       <div className={classNames(phoneLiveMode ? "h-[100dvh] overflow-hidden bg-hero-grid" : "min-h-screen bg-hero-grid")}>
         {!phoneLiveMode &&
@@ -2742,6 +2748,36 @@ function LiveMatchView({
             : "Round live"
     : null;
 
+  if (layoutMode === "coach") {
+    return (
+      <CoachLiveMatchView
+        match={match}
+        activeMap={activeMap}
+        latestRound={latestRound}
+        teamAPlayers={teamAPlayers}
+        teamBPlayers={teamBPlayers}
+        teamAState={teamAState}
+        teamBState={teamBState}
+        roundClock={roundClock}
+        roundProgress={roundProgress}
+        roundClockLabel={roundClockLabel}
+        layoutMode={layoutMode}
+        onLayoutModeChange={onLayoutModeChange}
+        presentationMode={presentationMode}
+        onPresentationModeChange={onPresentationModeChange}
+        currentPlaybackEvent={currentPlaybackEvent}
+        feedEntries={feedEntries}
+        liveStatusLabel={liveStatusLabel}
+        playbackStepLabel={playbackStepLabel}
+        mobileSite={mobileSite}
+        siteMode={siteMode}
+        onSiteModeChange={onSiteModeChange}
+        radarMarkers={radarMarkers}
+        latestRadarMarker={latestRadarMarker}
+      />
+    );
+  }
+
   if (mobileSite || layoutMode === "phone") {
     return (
       <PhoneLandscapeLiveMatchView
@@ -2790,7 +2826,7 @@ function LiveMatchView({
             <div className="flex items-center gap-2">
               <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
               <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
-              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} />
+              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} mobileSite={mobileSite} />
             </div>
           }
           className="p-4"
@@ -3041,6 +3077,211 @@ function LiveMatchView({
   );
 }
 
+function CoachLiveMatchView({
+  match,
+  activeMap,
+  latestRound,
+  teamAPlayers,
+  teamBPlayers,
+  teamAState,
+  teamBState,
+  roundClock,
+  roundProgress,
+  roundClockLabel,
+  layoutMode,
+  onLayoutModeChange,
+  presentationMode,
+  onPresentationModeChange,
+  currentPlaybackEvent = null,
+  feedEntries = [],
+  liveStatusLabel = null,
+  playbackStepLabel = null,
+  mobileSite = false,
+  siteMode = "desktop",
+  onSiteModeChange,
+  radarMarkers = [],
+  latestRadarMarker = null,
+}) {
+  const isLandscape = useIsLandscape(mobileSite);
+  const [radarExpanded, setRadarExpanded] = useState(false);
+  const teamAAlive = teamAPlayers.filter((player) => player.alive).length;
+  const teamBAlive = teamBPlayers.filter((player) => player.alive).length;
+
+  if (mobileSite && !isLandscape) {
+    return <RotatePhonePrompt match={match} activeMap={activeMap} siteMode={siteMode} onSiteModeChange={onSiteModeChange} />;
+  }
+
+  return (
+    <div
+      className={classNames(
+        "grid h-[100dvh] min-h-0 overflow-hidden",
+        mobileSite ? "grid-rows-[84px_minmax(0,1fr)] gap-2 px-0 py-0" : "grid-rows-[108px_minmax(0,1fr)] gap-4"
+      )}
+    >
+      <div className={classNames("panel flex items-center justify-between gap-3", mobileSite ? "rounded-none border-x-0 border-t-0 px-2 py-2" : "px-4 py-4")}>
+        <div className="flex items-center gap-3">
+          <div className="text-center">
+            <div className="numbers text-2xl text-text sm:text-3xl">{teamAAlive}</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Alive</div>
+          </div>
+          <div className="numbers text-3xl text-accent sm:text-5xl">{activeMap.score.teamA}</div>
+          <div className="min-w-0">
+            <div className="font-display text-xl text-text sm:text-2xl">{match.teamA.tag}</div>
+            <div className={classNames("text-[10px] uppercase tracking-[0.18em]", sideToneClasses(teamAState.side).text)}>{teamAState.side}</div>
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="font-display text-lg text-accent sm:text-2xl">{activeMap.mapName}</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+            {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {liveStatusLabel ?? "Coach View"}{playbackStepLabel ? ` · ${playbackStepLabel}` : ""}
+          </div>
+          <div className={classNames("mt-1 numbers text-xl sm:text-2xl", roundClock <= 10 ? "text-red-400" : "text-text")}>{roundClockLabel}</div>
+          <div className="mt-2 flex items-center justify-center gap-2">
+            {!mobileSite && <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />}
+            <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+            <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 text-right">
+            <div className="font-display text-xl text-text sm:text-2xl">{match.teamB.tag}</div>
+            <div className={classNames("text-[10px] uppercase tracking-[0.18em]", sideToneClasses(teamBState.side).text)}>{teamBState.side}</div>
+          </div>
+          <div className="numbers text-3xl text-sky-300 sm:text-5xl">{activeMap.score.teamB}</div>
+          <div className="text-center">
+            <div className="numbers text-2xl text-text sm:text-3xl">{teamBAlive}</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-muted">Alive</div>
+          </div>
+        </div>
+      </div>
+      <div
+        className={classNames(
+          "grid min-h-0 overflow-hidden",
+          mobileSite ? "grid-cols-[138px_minmax(0,1fr)_138px] gap-2 px-2 pb-2" : "grid-cols-[290px_minmax(0,1fr)_290px] gap-4"
+        )}
+      >
+        <CoachRosterColumn team={match.teamA} players={teamAPlayers} side={teamAState.side} mobile={mobileSite} />
+        <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_140px] gap-3 overflow-hidden">
+          <Panel
+            title={mobileSite ? "" : "Coach View"}
+            subtitle={mobileSite ? "" : "Map-first live board with alive counts, zone kills, and compact player strips."}
+            className={classNames("min-h-0 overflow-hidden", mobileSite ? "rounded-none border-x-0 p-2" : "p-3")}
+            action={
+              <button
+                type="button"
+                onClick={() => setRadarExpanded(true)}
+                className="rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-accent transition hover:border-accent hover:bg-accent/15"
+              >
+                Open Radar
+              </button>
+            }
+          >
+            <RadarPanel
+              mapName={activeMap.mapName}
+              markers={radarMarkers}
+              latestMarker={latestRadarMarker}
+              sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+              showSidebar={false}
+            />
+          </Panel>
+          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_200px]" : "grid-cols-[minmax(0,1fr)_260px]")}>
+            <Panel title={mobileSite ? "" : "Round Read"} subtitle={mobileSite ? "" : "Current call, bomb state, and pacing."} className="overflow-hidden p-3">
+              <div className="grid h-full gap-3">
+                <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
+                  <div className="font-display text-2xl text-text">{latestRound?.strategy ?? "Freeze time"}</div>
+                  <div className="mt-1 text-sm text-muted">
+                    {currentPlaybackEvent?.label ??
+                      `${latestRound?.winnerKey === "teamA" ? match.teamA.tag : match.teamB.tag} win by ${reasonLabel(latestRound?.reason)}`}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-xl border border-border bg-surface/70 px-3 py-2 text-muted">
+                    {match.teamA.tag}: <span className="text-text">{roundTypeLabel(latestRound?.roundType?.teamA)}</span>
+                  </div>
+                  <div className="rounded-xl border border-border bg-surface/70 px-3 py-2 text-muted">
+                    {match.teamB.tag}: <span className="text-text">{roundTypeLabel(latestRound?.roundType?.teamB)}</span>
+                  </div>
+                  <div className="rounded-xl border border-border bg-surface/70 px-3 py-2 text-muted">
+                    Bomb: <span className="text-text">{latestRound?.bombPlanted ? latestRound?.plantSite ?? "Planted" : "No plant"}</span>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border bg-card/60 px-3 py-3 text-sm text-muted">
+                  {latestRound?.highlight ?? "Round is unfolding zone by zone on the radar."}
+                </div>
+              </div>
+            </Panel>
+            <Panel title={mobileSite ? "" : "Live Feed"} subtitle={mobileSite ? "" : "Recent calls for casting."} className="flex min-h-0 flex-col overflow-hidden p-3">
+              <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {(feedEntries.length ? feedEntries : activeMap.allLogs.slice(0, 8)).slice(0, mobileSite ? 4 : 6).map((log) => (
+                  <div key={log.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
+                    <div className="numbers text-[11px] text-accent">[{log.clock}] {`R${log.roundNumber}`}</div>
+                    <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          </div>
+        </div>
+        <CoachRosterColumn team={match.teamB} players={teamBPlayers} side={teamBState.side} reverse mobile={mobileSite} />
+      </div>
+      {radarExpanded && (
+        <RadarExpandedModal
+          mapName={activeMap.mapName}
+          markers={radarMarkers}
+          latestMarker={latestRadarMarker}
+          sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+          onClose={() => setRadarExpanded(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CoachRosterColumn({ team, players, side, reverse = false, mobile = false }) {
+  const tone = sideToneClasses(side);
+  return (
+    <section className={classNames("panel min-h-0 overflow-hidden", mobile ? "rounded-none border-x-0 p-2" : "p-3")}>
+      <div className={classNames("mb-3 flex items-center justify-between rounded-2xl border px-3 py-3", tone.border, tone.bg, reverse && "flex-row-reverse text-right")}>
+        <div className="min-w-0">
+          <div className="font-display text-2xl text-text">{team.tag}</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted">{team.coach.nickname}</div>
+        </div>
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-surface">{renderLogo(team.logo, team.tag[0])}</div>
+      </div>
+      <div className="scrollbar-thin grid min-h-0 gap-2 overflow-y-auto pr-1">
+        {players.map((player) => (
+          <CoachPlayerRow key={player.id} player={player} side={side} reverse={reverse} mobile={mobile} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CoachPlayerRow({ player, side, reverse = false, mobile = false }) {
+  const tone = sideToneClasses(side);
+  return (
+    <div className={classNames("rounded-2xl border px-3 py-2.5", player.alive ? tone.border : "border-border bg-surface/60 opacity-75")}>
+      <div className={classNames("flex items-center justify-between gap-3", reverse && "flex-row-reverse text-right")}>
+        <div className="min-w-0">
+          <div className="truncate font-display text-lg text-text">{player.nickname}</div>
+          <div className="numbers text-xs text-muted">{player.kills}/{player.deaths}/{player.assists}</div>
+        </div>
+        <div className={classNames("rounded-lg px-2 py-1 text-[11px] font-semibold", weaponBadgeClasses(player.weaponType))}>
+          [{player.weaponLabel}]
+        </div>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface">
+        <div className={classNames("h-full rounded-full", tone.bar)} style={{ width: `${player.alive ? player.hp : 0}%` }} />
+      </div>
+      <div className={classNames("mt-2 flex items-center justify-between gap-2 text-[11px]", reverse && "flex-row-reverse")}>
+        <span className="text-muted">{player.alive ? `${player.hp} HP` : "OUT"}</span>
+        <span className="text-muted">{player.armor ? (player.helmet ? "Armor+H" : "Armor") : "No Armor"} · U {player.utilityCount}</span>
+        {!mobile && <span className="numbers text-emerald-300">{formatMoney(player.money)}</span>}
+      </div>
+    </div>
+  );
+}
+
 function TeamHeader({ team, score, side, reverse = false }) {
   return (
     <div className={classNames("flex items-center gap-4", reverse && "flex-row-reverse text-right")}>
@@ -3058,13 +3299,21 @@ function TeamHeader({ team, score, side, reverse = false }) {
   );
 }
 
-function LayoutModeSwitch({ layoutMode, onChange, compact = false }) {
+function LayoutModeSwitch({ layoutMode, onChange, compact = false, mobileSite = false }) {
+  const modes = mobileSite
+    ? [
+        { id: "broadcast", label: compact ? "Detail" : "Detailed" },
+        { id: "coach", label: "Coach" },
+      ]
+    : [
+        { id: "broadcast", label: compact ? "Desk" : "Broadcast" },
+        { id: "coach", label: "Coach" },
+        { id: "phone", label: "Phone" },
+      ];
+
   return (
     <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
-      {[
-        { id: "broadcast", label: compact ? "Desk" : "Broadcast" },
-        { id: "phone", label: "Phone" },
-      ].map((mode) => (
+      {modes.map((mode) => (
         <button
           key={mode.id}
           type="button"
@@ -3242,12 +3491,10 @@ function PhoneLandscapeLiveMatchView({
                 style={{ width: `${Math.max(4, roundProgress * 100)}%` }}
               />
             </div>
-            {!mobileSite && (
-              <div className="mt-2 flex items-center justify-end gap-2">
-                <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
-                <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact />
-              </div>
-            )}
+            <div className="mt-2 flex items-center justify-end gap-2">
+              <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
+            </div>
           </div>
         </div>
         <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_164px] gap-1.5 overflow-hidden sm:grid-cols-[minmax(0,1fr)_190px]">
