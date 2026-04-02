@@ -243,7 +243,7 @@ const RADAR_VIEWBOXES = {
     upper: { left: 0.08, top: 0.07, width: 0.84, height: 0.85 },
   },
   Inferno: {
-    upper: { left: 0.1, top: 0.03, width: 0.78, height: 0.92 },
+    upper: { left: 0.04, top: 0.03, width: 0.9, height: 0.92 },
   },
   Nuke: {
     upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
@@ -503,6 +503,33 @@ const RADAR_ZONE_ALIASES = {
     "site::a": "A Site",
     "site::b": "B Site",
   },
+  Ancient: {
+    "a main": "A Main",
+    temple: "Temple",
+    ramp: "Ramp",
+    mid: "Mid",
+    boost: "Boost",
+    water: "Water",
+    heaven: "Heaven",
+    doors: "Doors",
+    "site::a": "A Site",
+    "site::b": "B Site",
+  },
+  Anubis: {
+    "top mid": "Top Mid",
+    water: "Water",
+    pillar: "Pillar",
+    "a main": "Main",
+    main: "Main",
+    connector: "A Connector",
+    "a connector": "A Connector",
+    heaven: "Heaven",
+    "bridge::a": "Bridge",
+    "bridge::b": "Bridge",
+    bridge: "Bridge",
+    "site::a": "A Site",
+    "site::b": "B Site",
+  },
 };
 
 const RADAR_ZONE_POLYGONS = {
@@ -565,6 +592,29 @@ const RADAR_ZONE_POLYGONS = {
     Toilets: radarPolygon([[0.3987, 0.4938], [0.425, 0.4163], [0.385, 0.3725], [0.3862, 0.3463], [0.4313, 0.3488], [0.4587, 0.3713], [0.4637, 0.49], [0.4313, 0.525], [0.3912, 0.525]]),
     Van: radarPolygon([[0.3663, 0.1487], [0.4238, 0.1563], [0.4288, 0.135], [0.375, 0.1275]]),
     "A Short": radarPolygon([[0.36, 0.3113], [0.3875, 0.265], [0.505, 0.3262], [0.54, 0.5112], [0.4925, 0.5563], [0.4612, 0.495], [0.4637, 0.375], [0.4325, 0.3475], [0.3638, 0.345]]),
+  },
+  Ancient: {
+    "A Main": radarPolygon([[0.125, 0.38], [0.1275, 0.4263], [0.2412, 0.4238], [0.2412, 0.3812]]),
+    Temple: radarPolygon([[0.4425, 0.1412], [0.4313, 0.1412], [0.4263, 0.1338], [0.3412, 0.1363], [0.34, 0.1713], [0.37, 0.175], [0.3688, 0.165], [0.3962, 0.1675], [0.3962, 0.1737], [0.4225, 0.175], [0.4225, 0.1663], [0.4412, 0.165]]),
+    "A Site": radarPolygon([[0.2662, 0.235], [0.2612, 0.2825], [0.3412, 0.2838], [0.3412, 0.235]]),
+    Ramp: radarPolygon([[0.8025, 0.475], [0.8325, 0.4775], [0.8325, 0.4975], [0.8475, 0.5], [0.85, 0.5975], [0.8063, 0.5962]]),
+    Mid: radarPolygon([[0.5238, 0.5513], [0.425, 0.55], [0.44, 0.5288], [0.4412, 0.49], [0.4238, 0.47], [0.4225, 0.4437], [0.5025, 0.4437], [0.505, 0.4838], [0.5225, 0.4825]]),
+    Water: radarPolygon([[0.6725, 0.8413], [0.7212, 0.8387], [0.7212, 0.7462], [0.7275, 0.735], [0.6725, 0.7375]]),
+    Boost: radarPolygon([[0.195, 0.3237], [0.1975, 0.3563], [0.2263, 0.3563], [0.2263, 0.3375], [0.2525, 0.3375], [0.2487, 0.325]]),
+    "B Site": radarPolygon([[0.7025, 0.38], [0.7037, 0.4387], [0.78, 0.435], [0.7837, 0.4275], [0.79, 0.42], [0.7925, 0.4125], [0.7913, 0.4012], [0.7837, 0.3887], [0.77, 0.3837]]),
+    Heaven: radarPolygon([[0.5238, 0.5513], [0.525, 0.595], [0.5337, 0.595], [0.5337, 0.59], [0.5813, 0.5913], [0.5875, 0.5737], [0.5863, 0.5537]]),
+    Doors: radarPolygon([[0.77, 0.5975], [0.8063, 0.5988], [0.8013, 0.6225], [0.7712, 0.6225]]),
+  },
+  Anubis: {
+    "Top Mid": radarPolygon([[0.4248, 0.6465], [0.4238, 0.6836], [0.4463, 0.709], [0.4492, 0.7031], [0.4932, 0.7041], [0.5059, 0.709], [0.5186, 0.7041], [0.5352, 0.708], [0.5439, 0.7148], [0.5859, 0.6758], [0.541, 0.6748], [0.541, 0.665], [0.5293, 0.6641], [0.5293, 0.6328], [0.4336, 0.6318], [0.4336, 0.6445]]),
+    Water: radarPolygon([[0.4365, 0.5625], [0.4385, 0.6152], [0.46, 0.6152], [0.46, 0.6084], [0.4863, 0.6074], [0.5205, 0.6074], [0.5449, 0.6084], [0.5439, 0.6162], [0.5967, 0.6172], [0.5967, 0.6221], [0.6172, 0.6211], [0.6191, 0.5664], [0.5928, 0.5645], [0.5928, 0.5527], [0.5439, 0.5508], [0.5439, 0.5654], [0.5176, 0.5654], [0.4863, 0.5645], [0.4609, 0.5645]]),
+    Pillar: radarPolygon([[0.3623, 0.543], [0.3623, 0.5781], [0.2793, 0.5781], [0.2588, 0.5557], [0.2881, 0.543]]),
+    "B Site": radarPolygon([[0.3154, 0.5264], [0.3633, 0.5273], [0.3623, 0.4824], [0.3389, 0.459], [0.3145, 0.459]]),
+    Bridge: radarPolygon([[0.4951, 0.4893], [0.4932, 0.502], [0.4824, 0.5039], [0.4795, 0.5195], [0.4814, 0.541], [0.4863, 0.541], [0.4814, 0.541], [0.4854, 0.5654], [0.4814, 0.5742], [0.4814, 0.6016], [0.4863, 0.6094], [0.4863, 0.6299], [0.5166, 0.6309], [0.5166, 0.6074], [0.5234, 0.6025], [0.5225, 0.5674], [0.5166, 0.5625], [0.5186, 0.543], [0.5225, 0.502], [0.5225, 0.4893]]),
+    "A Connector": radarPolygon([[0.5967, 0.3701], [0.6045, 0.3691], [0.6104, 0.3623], [0.6504, 0.3604], [0.6523, 0.3672], [0.6592, 0.3662], [0.6592, 0.3896], [0.6533, 0.3848], [0.6514, 0.3926], [0.6172, 0.3955], [0.6016, 0.3936], [0.5967, 0.3975]]),
+    Main: radarPolygon([[0.7617, 0.4688], [0.7783, 0.4707], [0.7793, 0.4756], [0.8213, 0.4746], [0.8633, 0.4316], [0.8633, 0.3721], [0.8564, 0.3711], [0.8555, 0.3516], [0.8203, 0.3506], [0.8213, 0.3711], [0.8145, 0.3711], [0.8145, 0.4004], [0.7881, 0.4023], [0.7881, 0.4102], [0.8018, 0.4102], [0.8018, 0.4492], [0.7803, 0.4492], [0.7627, 0.4502]]),
+    "A Site": radarPolygon([[0.7246, 0.2188], [0.709, 0.2266], [0.71, 0.2334], [0.707, 0.2393], [0.6992, 0.2412], [0.6934, 0.251], [0.6904, 0.2607], [0.6895, 0.2705], [0.6895, 0.2793], [0.6953, 0.291], [0.6914, 0.2949], [0.6875, 0.2988], [0.6875, 0.3047], [0.707, 0.3115], [0.7324, 0.3096], [0.75, 0.3066], [0.7607, 0.3018], [0.7695, 0.2939], [0.7793, 0.2822], [0.7793, 0.2676], [0.7822, 0.2568], [0.7617, 0.2246], [0.7432, 0.2246]]),
+    Heaven: radarPolygon([[0.2432, 0.6533], [0.2793, 0.6533], [0.2803, 0.6787], [0.3311, 0.7285], [0.3037, 0.7471], [0.2422, 0.6865]]),
   },
 };
 
@@ -1592,7 +1642,45 @@ function spawnInRadarRegion(region, seed, mapName) {
   };
 }
 
+function separateRadarMarker(position, priorMarkers, seed, mapName) {
+  const level = position.level ?? "upper";
+  const relevantMarkers = priorMarkers.filter(
+    (marker) => marker.level === level && marker.zone === position.zone
+  );
+
+  if (!relevantMarkers.length) {
+    return position;
+  }
+
+  const viewBox = getRadarViewBox(mapName, level);
+  const minDistance = 0.024;
+
+  const isFarEnough = (candidate) =>
+    relevantMarkers.every((marker) => Math.hypot(candidate.x - marker.x, candidate.y - marker.y) >= minDistance);
+
+  if (isFarEnough(position)) {
+    return position;
+  }
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const angle = seededRadarUnit(seed, 50 + attempt * 2) * Math.PI * 2;
+    const distance = minDistance * (1 + seededRadarUnit(seed, 51 + attempt * 2) * 0.9);
+    const candidate = {
+      ...position,
+      x: clamp(position.x + Math.cos(angle) * distance, viewBox.left + 0.015 * viewBox.width, viewBox.left + 0.985 * viewBox.width),
+      y: clamp(position.y + Math.sin(angle) * distance, viewBox.top + 0.015 * viewBox.height, viewBox.top + 0.985 * viewBox.height),
+    };
+
+    if (isFarEnough(candidate)) {
+      return candidate;
+    }
+  }
+
+  return position;
+}
+
 function buildRadarMarkers(events = [], mapName) {
+  const placedMarkers = [];
   const kills = events
     .filter((event) => event.kind === "kill")
     .map((event, index, source) => {
@@ -1601,11 +1689,20 @@ function buildRadarMarkers(events = [], mapName) {
         `${mapName}:${event.zone ?? event.site ?? "unknown"}:${event.id}:${index}`,
         mapName
       );
-      return {
+      const separated = separateRadarMarker(
+        {
+          ...position,
+          zone: event.zone,
+        },
+        placedMarkers,
+        `${event.id}:${event.zone ?? "zone"}:${index}`,
+        mapName
+      );
+      const marker = {
         id: `${event.id}_${index}`,
-        x: position.x,
-        y: position.y,
-        level: position.level ?? "upper",
+        x: separated.x,
+        y: separated.y,
+        level: separated.level ?? "upper",
         zone: event.zone,
         site: event.site,
         victimTeamKey: event.victimTeamKey,
@@ -1615,6 +1712,8 @@ function buildRadarMarkers(events = [], mapName) {
         openingKill: event.openingKill,
         recent: index === source.length - 1,
       };
+      placedMarkers.push(marker);
+      return marker;
     });
 
   return kills;

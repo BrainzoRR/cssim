@@ -268,8 +268,239 @@ const MAP_ROUTE_PRESETS = {
   },
 };
 
+const DEFAULT_PHASE_WINDOWS = {
+  early: [12, 34],
+  utility: [14, 55],
+  mid: [22, 62],
+  site: [38, 88],
+  retake: [55, 115],
+  lurk: [18, 72],
+};
+
+const ZONE_TIME_WINDOWS = {
+  Mirage: {
+    apartments: [12, 42],
+    bench: [40, 115],
+    market: [46, 115],
+    van: [45, 115],
+    "top mid": [12, 36],
+    window: [14, 44],
+    connector: [18, 70],
+    catwalk: [18, 60],
+    "a ramp": [18, 55],
+    palace: [24, 60],
+    ticket: [42, 115],
+    jungle: [38, 115],
+  },
+  Inferno: {
+    mid: [12, 38],
+    boiler: [18, 46],
+    lane: [26, 56],
+    short: [34, 75],
+    arch: [38, 85],
+    library: [52, 115],
+    pit: [48, 115],
+    banana: [14, 62],
+    coffins: [48, 115],
+    "new box": [44, 115],
+    dark: [44, 115],
+  },
+  Dust: {
+    "top mid": [12, 30],
+    mid: [14, 36],
+    xbox: [16, 40],
+    catwalk: [18, 52],
+    "lower tunnels": [16, 40],
+    tunnels: [12, 38],
+    door: [36, 90],
+    window: [38, 95],
+    long: [24, 62],
+    short: [24, 62],
+    "a site": [42, 115],
+    "b site": [40, 115],
+  },
+  Overpass: {
+    party: [12, 36],
+    fountain: [14, 42],
+    connector: [20, 60],
+    bathrooms: [18, 50],
+    long: [24, 64],
+    monster: [18, 52],
+    short: [24, 60],
+    pillar: [44, 115],
+    truck: [44, 115],
+  },
+  Ancient: {
+    "a main": [18, 52],
+    cave: [16, 50],
+    lane: [22, 58],
+    donut: [22, 62],
+    mid: [14, 44],
+    "red room": [18, 46],
+    temple: [46, 115],
+    "back site": [42, 115],
+    ramp: [38, 115],
+  },
+  Anubis: {
+    "top mid": [12, 40],
+    mid: [16, 46],
+    connector: [22, 62],
+    water: [26, 70],
+    "a main": [22, 56],
+    canal: [20, 54],
+    bridge: [26, 70],
+    pillar: [42, 115],
+    heaven: [40, 115],
+  },
+};
+
+const TIGHT_ZONE_TOKENS = [
+  "dark",
+  "coffins",
+  "pit",
+  "library",
+  "window",
+  "van",
+  "ticket",
+  "bench",
+  "pillar",
+  "truck",
+  "temple",
+  "heaven",
+  "boiler",
+  "door",
+  "decon",
+  "new box",
+  "quad",
+  "boost",
+  "market",
+  "xbox",
+  "garage",
+  "mini",
+  "hut",
+];
+
+const LARGE_ZONE_TOKENS = [
+  "site",
+  "mid",
+  "banana",
+  "long",
+  "top mid",
+  "outside",
+  "water",
+  "ramp",
+  "apartments",
+  "connector",
+  "party",
+  "lane",
+  "cave",
+  "canal",
+  "bridge",
+  "monster",
+  "catwalk",
+  "tunnels",
+];
+
 function uniqueZones(zones) {
   return [...new Set(zones.filter(Boolean))];
+}
+
+function normalizeZoneName(zone) {
+  return typeof zone === "string" ? zone.trim().toLowerCase() : "";
+}
+
+function getZoneCapacity(zone) {
+  const normalizedZone = normalizeZoneName(zone);
+
+  if (TIGHT_ZONE_TOKENS.some((token) => normalizedZone.includes(token))) {
+    return 1;
+  }
+
+  if (LARGE_ZONE_TOKENS.some((token) => normalizedZone.includes(token))) {
+    return 3;
+  }
+
+  return 2;
+}
+
+function getPhaseTimeWindow(mapName, zone, phase) {
+  const normalizedZone = normalizeZoneName(zone);
+  const override = ZONE_TIME_WINDOWS[mapName]?.[normalizedZone];
+  if (override) {
+    return override;
+  }
+
+  return DEFAULT_PHASE_WINDOWS[phase] ?? [12, 115];
+}
+
+function zoneAllowedAtTime(mapName, zone, phase, elapsed) {
+  const [minElapsed, maxElapsed] = getPhaseTimeWindow(mapName, zone, phase);
+  return elapsed >= minElapsed && elapsed <= maxElapsed;
+}
+
+function buildVictimZonePool(mapName, site, phase, victimSide) {
+  const presets = MAP_ROUTE_PRESETS[mapName];
+  const target = presets?.[site];
+  const mid = presets?.Mid;
+  const fallbackMid = MAP_ZONES[mapName]?.Mid ?? ["mid"];
+
+  if (!presets || !target || !mid) {
+    return MAP_ZONES[mapName]?.[site] ?? fallbackMid;
+  }
+
+  if (site === "Mid") {
+    if (phase === "lurk") {
+      return victimSide === "CT"
+        ? uniqueZones([...(presets.lurk ?? []), ...mid.hold])
+        : uniqueZones([...mid.entry, ...mid.support]);
+    }
+
+    if (phase === "retake") {
+      return victimSide === "CT" ? uniqueZones(mid.hold) : uniqueZones(mid.entry);
+    }
+
+    return victimSide === "CT"
+      ? uniqueZones([...mid.hold, ...mid.support])
+      : uniqueZones([...mid.entry, ...mid.support.slice(0, 1)]);
+  }
+
+  if (phase === "early") {
+    return victimSide === "CT"
+      ? uniqueZones([...mid.hold.slice(0, 1), ...target.hold.slice(0, 1), ...target.support.slice(0, 1)])
+      : uniqueZones([...mid.entry, ...target.entry.slice(0, 1)]);
+  }
+
+  if (phase === "utility") {
+    return victimSide === "CT"
+      ? uniqueZones([...target.hold.slice(0, 1), ...target.support])
+      : uniqueZones([...target.entry, ...mid.entry.slice(0, 1)]);
+  }
+
+  if (phase === "mid") {
+    return victimSide === "CT"
+      ? uniqueZones([...mid.hold, ...target.hold.slice(0, 1), ...target.support])
+      : uniqueZones([...target.entry, ...mid.entry, ...target.support.slice(0, 1)]);
+  }
+
+  if (phase === "site") {
+    return victimSide === "CT"
+      ? uniqueZones([...target.hold, ...target.support])
+      : uniqueZones([...target.entry, ...target.support.slice(0, 1)]);
+  }
+
+  if (phase === "retake") {
+    return victimSide === "CT"
+      ? uniqueZones(target.retake ?? [...target.hold, ...target.support])
+      : uniqueZones(target.postPlant ?? [...target.entry, ...target.hold.slice(0, 1)]);
+  }
+
+  if (phase === "lurk") {
+    return victimSide === "CT"
+      ? uniqueZones([...(presets.lurk ?? []), ...mid.hold.slice(0, 1)])
+      : uniqueZones([...mid.entry, ...target.entry.slice(0, 1)]);
+  }
+
+  return MAP_ZONES[mapName]?.[site] ?? fallbackMid;
 }
 
 function oppositeSite(site) {
@@ -2294,25 +2525,33 @@ function pickPlannedZone(roundPlan, lane, fallbackZones = [], options = {}) {
     return fallbackZones[0] ?? "mid";
   }
 
+  const eligiblePool = lanePool.filter((zone) =>
+    zoneAllowedAtTime(options.mapName, zone, options.phase ?? lane, options.elapsed ?? 0)
+  );
+  const candidatePool = eligiblePool.length ? eligiblePool : lanePool;
+
   if (
     options.preferTrade &&
     options.lastDeath?.zone &&
-    lanePool.includes(options.lastDeath.zone) &&
-    Math.random() < 0.6
+    candidatePool.includes(options.lastDeath.zone) &&
+    (options.zoneUsage?.[options.lastDeath.zone] ?? 0) < Math.max(2, getZoneCapacity(options.lastDeath.zone)) &&
+    Math.random() < 0.38
   ) {
     return options.lastDeath.zone;
   }
 
   const anchorIndex = Math.min(
-    lanePool.length - 1,
-    Math.max(0, options.index ?? Math.floor(lanePool.length / 2))
+    candidatePool.length - 1,
+    Math.max(0, options.index ?? Math.floor(candidatePool.length / 2))
   );
-  const anchorZone = lanePool[anchorIndex];
-  if (Math.random() < 0.72) {
-    return anchorZone;
-  }
-
-  return pick(lanePool);
+  const anchorZone = candidatePool[anchorIndex];
+  return weightedPick(candidatePool, (zone) => {
+    const usage = options.zoneUsage?.[zone] ?? 0;
+    const capacity = getZoneCapacity(zone);
+    let weight = zone === anchorZone ? 1.35 : 1;
+    weight *= usage >= capacity ? 0.06 : 1 / (1 + usage * 1.4);
+    return weight;
+  });
 }
 
 function strategyCallLabel(teamName, strategy, mapName, plantSite) {
@@ -2399,6 +2638,7 @@ function maybeUtilityDamage({
   roundFlags,
   firstKillTaken,
   lastDeath,
+  zoneUsage,
 }) {
   const throwers = getAlivePlayers(attackingTeam).filter(
     (player) =>
@@ -2419,9 +2659,19 @@ function maybeUtilityDamage({
       : "incendiary";
   consumeUtility(thrower, grenadeType);
   const target = pickCombatant(defendingTeam, "site", "close");
-  const utilityZone = pickPlannedZone(roundPlan, "utility", MAP_ZONES[mapName][site] ?? MAP_ZONES[mapName].Mid, {
+  const utilityZone = pickPlannedZone(
+    roundPlan,
+    "utility",
+    buildVictimZonePool(mapName, site, "utility", defendingTeam.side),
+    {
     lastDeath,
-  });
+      elapsed,
+      phase: "utility",
+      mapName,
+      site,
+      zoneUsage,
+    }
+  );
   const damage = Math.round(rand(18, 44) * (thrower.utility / 90));
   target.hp = clamp(target.hp - damage, 0, 100);
   thrower.stats.damage += damage;
@@ -2444,6 +2694,7 @@ function maybeUtilityDamage({
   );
 
   if (target.hp <= 0) {
+    recordZoneUse(zoneUsage, utilityZone);
     target.alive = false;
     target.hp = 0;
     thrower.stats.kills += 1;
@@ -2588,6 +2839,14 @@ function maybeSupportChipDamage(teamState, excludedPlayerId, target, roundFlags)
   return { helper, chipDamage };
 }
 
+function recordZoneUse(zoneUsage, zone) {
+  if (!zone) {
+    return;
+  }
+
+  zoneUsage[zone] = (zoneUsage[zone] ?? 0) + 1;
+}
+
 function getTeamKillCount(teamState, roundFlags) {
   return sum(teamState.players.map((player) => roundFlags[player.id].kills));
 }
@@ -2612,6 +2871,7 @@ function resolveDuelEvent({
   tacticalPenalty,
   timeline,
   duelIndex = 0,
+  zoneUsage,
 }) {
   const attackerTeam = teamStates[attackerTeamKey];
   const defenderTeam = teamStates[defenderTeamKey];
@@ -2704,13 +2964,20 @@ function resolveDuelEvent({
           ? "retake"
           : "postPlant"
         : phase === "mid"
-          ? "mid"
+        ? "mid"
           : "hit";
-  const zone = pickPlannedZone(roundPlan, lane, MAP_ZONES[mapName][site] ?? MAP_ZONES[mapName].Mid, {
+  const victimZonePool = buildVictimZonePool(mapName, site, phase, loserTeam.side);
+  const zone = pickPlannedZone(roundPlan, lane, victimZonePool, {
     lastDeath,
     preferTrade: traded || phase === "retake",
     index: duelIndex,
+    elapsed,
+    phase,
+    mapName,
+    site,
+    zoneUsage,
   });
+  recordZoneUse(zoneUsage, zone);
   const prefix = traded ? `${winner.nickname} trades out ${loser.nickname}` : `${winner.nickname} picks off ${loser.nickname}`;
   elapsedLog(
     logs,
@@ -2794,6 +3061,7 @@ function maybeLurkKill({
   roundFlags,
   firstKillTaken,
   lastDeath,
+  zoneUsage,
 }) {
   const lurker = getAlivePlayers(teamStates[teamKey]).find((player) => player.role === "Lurker");
   if (!lurker) {
@@ -2831,9 +3099,15 @@ function maybeLurkKill({
     roundFlags[lurker.id].openingKill = true;
   }
 
-  const zone = pickPlannedZone(roundPlan, "lurk", MAP_ZONES[mapName].Mid, {
+  const zone = pickPlannedZone(roundPlan, "lurk", buildVictimZonePool(mapName, "Mid", "lurk", teamStates[enemyKey].side), {
     lastDeath,
+    elapsed,
+    phase: "lurk",
+    mapName,
+    site: "Mid",
+    zoneUsage,
   });
+  recordZoneUse(zoneUsage, zone);
 
   elapsedLog(
     logs,
@@ -3008,6 +3282,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     teamA: null,
     teamB: null,
   };
+  const zoneUsage = {};
   const tWinProbability = buildTWinProbability(
     teamStates[tKey],
     teamStates[ctKey],
@@ -3026,6 +3301,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       : strategy.site === "Mid"
         ? (Math.random() < 0.5 ? "A" : "B")
         : strategy.site;
+  const openingSite = strategy.site === "Mid" ? "Mid" : strategy.site;
   const roundPlan = buildRoundZonePlan(mapName, strategy, plantSite);
 
   if (roundContext.timeoutCalled === "teamA" || roundContext.timeoutCalled === "teamB") {
@@ -3077,11 +3353,12 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     timeline,
     elapsed: elapsed + 3,
     mapName,
-    site: plantSite,
+    site: openingSite,
     roundPlan,
     roundFlags,
     firstKillTaken,
     lastDeath,
+    zoneUsage,
   });
   firstKillTaken = tUtilityResult.firstKillTaken;
   lastDeath = tUtilityResult.lastDeath;
@@ -3095,11 +3372,12 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     timeline,
     elapsed: elapsed + 4,
     mapName,
-    site: plantSite,
+    site: openingSite,
     roundPlan,
     roundFlags,
     firstKillTaken,
     lastDeath,
+    zoneUsage,
   });
   firstKillTaken = ctUtilityResult.firstKillTaken;
   lastDeath = ctUtilityResult.lastDeath;
@@ -3116,8 +3394,13 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
   if (earlyAttacker && earlyDefender) {
     const flashSupport = maybeFlashSupport(teamStates[earlyAttackerKey]);
     if (flashSupport) {
-      const flashZone = pickPlannedZone(roundPlan, "early", MAP_ZONES[mapName][plantSite] ?? MAP_ZONES[mapName].Mid, {
+      const flashZone = pickPlannedZone(roundPlan, "early", MAP_ZONES[mapName][openingSite] ?? MAP_ZONES[mapName].Mid, {
         lastDeath,
+        elapsed: elapsed + 4,
+        phase: "early",
+        mapName,
+        site: openingSite,
+        zoneUsage,
       });
       elapsedLog(
         logs,
@@ -3146,7 +3429,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       phase: "early",
       range: earlyRange,
       mapName,
-      site: strategy.site === "Mid" ? plantSite : strategy.site,
+      site: openingSite,
       roundPlan,
       logs,
       elapsed: elapsed + 5,
@@ -3157,6 +3440,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       tacticalPenalty,
       timeline,
       duelIndex: 0,
+      zoneUsage,
     });
     elapsed = duelResult.elapsed;
     firstKillTaken = duelResult.firstKillTaken;
@@ -3177,6 +3461,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     roundFlags,
     firstKillTaken,
     lastDeath,
+    zoneUsage,
   });
   elapsed = lurkResult.elapsed;
   firstKillTaken = lurkResult.firstKillTaken;
@@ -3280,7 +3565,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
         roundPlan,
         bombPlanted ? "retake" : "hit",
         MAP_ZONES[mapName][plantSite] ?? MAP_ZONES[mapName].Mid,
-        { lastDeath, index: duelIndex }
+        { lastDeath, index: duelIndex, elapsed: elapsed + 1, phase: bombPlanted ? "retake" : "site", mapName, site: plantSite, zoneUsage }
       );
       elapsedLog(
         logs,
@@ -3320,6 +3605,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       tacticalPenalty,
       timeline,
       duelIndex,
+      zoneUsage,
     });
 
     elapsed = duelResult.elapsed;
