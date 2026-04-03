@@ -249,7 +249,7 @@ const RADAR_VIEWBOXES = {
   },
   Nuke: {
     upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
-    lower: { left: 0.31, top: 0.24, width: 0.5, height: 0.58 },
+    lower: { left: 0.39, top: 0.28, width: 0.46, height: 0.49 },
   },
   Overpass: {
     upper: { left: 0.09, top: 0.03, width: 0.79, height: 0.93 },
@@ -594,11 +594,11 @@ const RADAR_ZONE_POLYGONS = {
     Mini: radarPolygon([[0.626, 0.545], [0.679, 0.545], [0.679, 0.614], [0.626, 0.614]], "upper", "absolute"),
     Hut: radarPolygon([[0.5262, 0.5713], [0.5525, 0.5713], [0.55, 0.53], [0.5225, 0.5313]], "upper", "absolute"),
     Heaven: radarPolygon([[0.62, 0.445], [0.6813, 0.4437], [0.685, 0.485], [0.6212, 0.485]], "upper", "absolute"),
-    Ramp: radarPolygon([[0.06, 0.43], [0.28, 0.43], [0.38, 0.5], [0.34, 0.62], [0.2, 0.63], [0.08, 0.58]], "lower", "absolute"),
-    Decon: radarPolygon([[0.67, 0.44], [0.77, 0.44], [0.77, 0.56], [0.67, 0.56]], "lower", "absolute"),
-    Doors: radarPolygon([[0.43, 0.28], [0.58, 0.28], [0.58, 0.37], [0.43, 0.37]], "lower", "absolute"),
-    "B Site": radarPolygon([[0.43, 0.34], [0.65, 0.34], [0.65, 0.62], [0.43, 0.62]], "lower", "absolute"),
-    Secret: radarPolygon([[0.76, 0.31], [0.92, 0.31], [0.92, 0.74], [0.83, 0.74], [0.83, 0.44], [0.76, 0.44]], "lower", "absolute"),
+    Ramp: radarPolygon([[0.39, 0.45], [0.47, 0.45], [0.5, 0.56], [0.47, 0.66], [0.41, 0.66], [0.38, 0.57]], "lower", "absolute"),
+    Decon: radarPolygon([[0.64, 0.45], [0.73, 0.45], [0.73, 0.57], [0.64, 0.57]], "lower", "absolute"),
+    Doors: radarPolygon([[0.49, 0.3], [0.58, 0.3], [0.58, 0.38], [0.49, 0.38]], "lower", "absolute"),
+    "B Site": radarPolygon([[0.47, 0.35], [0.64, 0.35], [0.64, 0.66], [0.47, 0.66]], "lower", "absolute"),
+    Secret: radarPolygon([[0.74, 0.31], [0.85, 0.31], [0.85, 0.73], [0.75, 0.73], [0.75, 0.5], [0.74, 0.5]], "lower", "absolute"),
   },
   Dust: {
     "A Long": radarPolygon([[0.8263, 0.4263], [0.855, 0.4375], [0.8325, 0.4925], [0.91, 0.4925], [0.9163, 0.2838], [0.8225, 0.275]]),
