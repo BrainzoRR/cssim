@@ -249,7 +249,7 @@ const RADAR_VIEWBOXES = {
   },
   Nuke: {
     upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
-    lower: { left: 0.03, top: 0.26, width: 0.9, height: 0.55 },
+    lower: { left: 0.056, top: 0.264, width: 0.928, height: 0.496 },
   },
   Overpass: {
     upper: { left: 0.09, top: 0.03, width: 0.79, height: 0.93 },
@@ -5710,7 +5710,7 @@ function RadarPanel({
             "grid h-full w-full min-h-0 gap-3",
             splitLevels
               ? expanded
-                ? "grid-cols-[minmax(0,1fr)_240px]"
+                ? "grid-cols-[minmax(0,1fr)_300px]"
                 : compactStage
                   ? "grid-cols-[minmax(0,1fr)_140px]"
                   : "grid-cols-[minmax(0,1fr)_180px]"
@@ -5733,7 +5733,16 @@ function RadarPanel({
             />
           </div>
           {splitLevels && (
-            <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-[#050608]">
+            <div
+              className={classNames(
+                "overflow-hidden rounded-xl border border-border bg-[#050608]",
+                expanded
+                  ? "self-center aspect-[1.87/1] h-auto max-h-[220px]"
+                  : compactStage
+                    ? "self-center aspect-[1.87/1] h-auto max-h-[120px]"
+                    : "self-center aspect-[1.87/1] h-auto max-h-[150px]"
+              )}
+            >
               <RadarImageStage
                 src={assets.lower}
                 alt={`${mapName} lower radar`}
