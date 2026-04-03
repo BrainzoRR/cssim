@@ -988,8 +988,9 @@ function App() {
     setLiveLayoutMode(mode === "mobile" ? "coach" : "broadcast");
   };
 
-  const playSoundCue = async (cue) => {
-    if (!soundDesignEnabled || typeof window === "undefined") {
+  const playSoundCue = async (cue, options = {}) => {
+    const { force = false } = options;
+    if ((!soundDesignEnabled && !force) || typeof window === "undefined") {
       return;
     }
 
@@ -1011,21 +1012,25 @@ function App() {
 
     const presets = {
       kill: [
-        { frequency: 760, duration: 0.04, type: "triangle", gain: 0.02 },
-        { frequency: 620, duration: 0.05, type: "sine", gain: 0.014, delay: 0.045 },
+        { frequency: 760, duration: 0.05, type: "triangle", gain: 0.05 },
+        { frequency: 620, duration: 0.06, type: "sine", gain: 0.034, delay: 0.05 },
       ],
       plant: [
-        { frequency: 420, duration: 0.08, type: "square", gain: 0.018 },
-        { frequency: 520, duration: 0.08, type: "triangle", gain: 0.014, delay: 0.09 },
+        { frequency: 420, duration: 0.1, type: "square", gain: 0.042 },
+        { frequency: 520, duration: 0.1, type: "triangle", gain: 0.03, delay: 0.1 },
       ],
       defuse: [
-        { frequency: 520, duration: 0.06, type: "triangle", gain: 0.018 },
-        { frequency: 760, duration: 0.08, type: "triangle", gain: 0.015, delay: 0.07 },
+        { frequency: 520, duration: 0.08, type: "triangle", gain: 0.04 },
+        { frequency: 760, duration: 0.1, type: "triangle", gain: 0.032, delay: 0.08 },
       ],
       clutch: [
-        { frequency: 660, duration: 0.06, type: "sawtooth", gain: 0.016 },
-        { frequency: 880, duration: 0.07, type: "triangle", gain: 0.016, delay: 0.08 },
-        { frequency: 1040, duration: 0.09, type: "triangle", gain: 0.015, delay: 0.16 },
+        { frequency: 660, duration: 0.08, type: "sawtooth", gain: 0.038 },
+        { frequency: 880, duration: 0.09, type: "triangle", gain: 0.038, delay: 0.08 },
+        { frequency: 1040, duration: 0.11, type: "triangle", gain: 0.034, delay: 0.17 },
+      ],
+      preview: [
+        { frequency: 520, duration: 0.08, type: "triangle", gain: 0.05 },
+        { frequency: 760, duration: 0.1, type: "triangle", gain: 0.042, delay: 0.1 },
       ],
     };
 
@@ -1043,6 +1048,13 @@ function App() {
       oscillator.start(startAt);
       oscillator.stop(startAt + tone.duration + 0.02);
     });
+  };
+
+  const handleSoundDesignChange = (nextEnabled) => {
+    setSoundDesignEnabled(nextEnabled);
+    if (nextEnabled) {
+      void playSoundCue("preview", { force: true });
+    }
   };
 
   useEffect(() => {
@@ -1502,7 +1514,7 @@ function App() {
                 playbackRate={livePlaybackRate}
                 onPlaybackRateChange={setLivePlaybackRate}
                 soundDesignEnabled={soundDesignEnabled}
-                onSoundDesignChange={setSoundDesignEnabled}
+                onSoundDesignChange={handleSoundDesignChange}
                 roundPlayback={roundPlayback}
                 fullscreen={phoneLiveMode}
                 siteMode={siteMode}
@@ -1799,7 +1811,7 @@ function separateRadarMarker(position, priorMarkers, seed, mapName) {
   }
 
   const viewBox = getRadarViewBox(mapName, level);
-  const minDistance = 0.024;
+  const minDistance = level === "lower" ? 0.017 : 0.024;
 
   const isFarEnough = (candidate) =>
     relevantMarkers.every((marker) => Math.hypot(candidate.x - marker.x, candidate.y - marker.y) >= minDistance);
@@ -1808,15 +1820,25 @@ function separateRadarMarker(position, priorMarkers, seed, mapName) {
     return position;
   }
 
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const candidate = spawnInRadarRegion(position, `${seed}:retry:${attempt}`, mapName);
+    if (isFarEnough(candidate)) {
+      return {
+        ...position,
+        x: clamp(candidate.x, viewBox.left + 0.015 * viewBox.width, viewBox.left + 0.985 * viewBox.width),
+        y: clamp(candidate.y, viewBox.top + 0.015 * viewBox.height, viewBox.top + 0.985 * viewBox.height),
+      };
+    }
+  }
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     const angle = seededRadarUnit(seed, 50 + attempt * 2) * Math.PI * 2;
-    const distance = minDistance * (1 + seededRadarUnit(seed, 51 + attempt * 2) * 0.9);
+    const distance = minDistance * (0.55 + seededRadarUnit(seed, 51 + attempt * 2) * 0.45);
     const candidate = {
       ...position,
       x: clamp(position.x + Math.cos(angle) * distance, viewBox.left + 0.015 * viewBox.width, viewBox.left + 0.985 * viewBox.width),
       y: clamp(position.y + Math.sin(angle) * distance, viewBox.top + 0.015 * viewBox.height, viewBox.top + 0.985 * viewBox.height),
     };
-
     if (isFarEnough(candidate)) {
       return candidate;
     }
