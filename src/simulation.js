@@ -3208,6 +3208,36 @@ function buildPlaybackSnapshot(teamStates) {
   };
 }
 
+function buildRoundPlayerStats(teamKey, teamState, roundFlags) {
+  return teamState.players.map((player) => {
+    const flags = roundFlags[player.id];
+    const assistCount = flags.gotAssist ? 1 : 0;
+    const rawFormScore =
+      flags.kills * 1.22 +
+      assistCount * 0.46 +
+      flags.damage / 72 +
+      (flags.openingKill ? 0.62 : 0) +
+      (player.alive ? 0.24 : 0) +
+      (flags.traded ? 0.18 : 0) -
+      (flags.died ? 0.28 : 0);
+
+    return {
+      id: player.id,
+      teamKey,
+      nickname: player.nickname,
+      role: player.role,
+      kills: flags.kills,
+      assists: assistCount,
+      damage: round(flags.damage, 0),
+      died: flags.died,
+      survived: player.alive,
+      traded: flags.traded,
+      openingKill: flags.openingKill,
+      formScore: round(Math.max(0, rawFormScore), 2),
+    };
+  });
+}
+
 function settleTeamAfterRound(teamStateInput, options) {
   const teamState = deepClone(teamStateInput);
   const {
@@ -3305,6 +3335,10 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
     tKey === "teamA" ? preparedTeamA.totalLoadoutValue : preparedTeamB.totalLoadoutValue,
     ctKey === "teamA" ? preparedTeamA.totalLoadoutValue : preparedTeamB.totalLoadoutValue
   );
+  const preRoundExpectancy =
+    tKey === "teamA"
+      ? { teamA: round(tWinProbability, 3), teamB: round(1 - tWinProbability, 3) }
+      : { teamA: round(1 - tWinProbability, 3), teamB: round(tWinProbability, 3) };
   const strategy = chooseStrategy(mapName, teamStates[tKey]);
   let elapsed = 10;
   let firstKillTaken = false;
@@ -3827,6 +3861,7 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       logs,
       timeline,
       startLoadouts,
+      preRoundExpectancy,
       economy: {
         teamAEquipmentValue: preparedTeamA.totalLoadoutValue,
         teamBEquipmentValue: preparedTeamB.totalLoadoutValue,
@@ -3836,6 +3871,14 @@ export function simulateRound(teamAStateInput, teamBStateInput, mapName, economy
       loadouts: {
         teamA: nextTeamA.players.map(buildPlayerPanel),
         teamB: nextTeamB.players.map(buildPlayerPanel),
+      },
+      sides: {
+        teamA: nextTeamA.side,
+        teamB: nextTeamB.side,
+      },
+      playerRoundStats: {
+        teamA: buildRoundPlayerStats("teamA", nextTeamA, roundFlags),
+        teamB: buildRoundPlayerStats("teamB", nextTeamB, roundFlags),
       },
       spectatorLeaders: {
         teamA: {

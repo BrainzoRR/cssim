@@ -25,6 +25,8 @@ import {
   Trophy,
   Upload,
   Users,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import {
@@ -247,7 +249,7 @@ const RADAR_VIEWBOXES = {
   },
   Nuke: {
     upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
-    lower: { left: 0.44, top: 0.27, width: 0.33, height: 0.56 },
+    lower: { left: 0.03, top: 0.26, width: 0.9, height: 0.55 },
   },
   Overpass: {
     upper: { left: 0.09, top: 0.03, width: 0.79, height: 0.93 },
@@ -592,11 +594,11 @@ const RADAR_ZONE_POLYGONS = {
     Mini: radarPolygon([[0.626, 0.545], [0.679, 0.545], [0.679, 0.614], [0.626, 0.614]], "upper", "absolute"),
     Hut: radarPolygon([[0.5262, 0.5713], [0.5525, 0.5713], [0.55, 0.53], [0.5225, 0.5313]], "upper", "absolute"),
     Heaven: radarPolygon([[0.62, 0.445], [0.6813, 0.4437], [0.685, 0.485], [0.6212, 0.485]], "upper", "absolute"),
-    Ramp: radarPolygon([[0.36, 0.46], [0.46, 0.46], [0.47, 0.66], [0.34, 0.66]], "lower", "view"),
-    Decon: radarPolygon([[0.72, 0.44], [0.83, 0.44], [0.83, 0.58], [0.72, 0.58]], "lower", "view"),
-    Doors: radarPolygon([[0.42, 0.22], [0.54, 0.22], [0.54, 0.32], [0.42, 0.32]], "lower", "view"),
-    "B Site": radarPolygon([[0.47, 0.32], [0.67, 0.32], [0.67, 0.66], [0.47, 0.66]], "lower", "view"),
-    Secret: radarPolygon([[0.16, 0.63], [0.42, 0.63], [0.42, 0.74], [0.16, 0.74]], "lower", "view"),
+    Ramp: radarPolygon([[0.06, 0.43], [0.28, 0.43], [0.38, 0.5], [0.34, 0.62], [0.2, 0.63], [0.08, 0.58]], "lower", "absolute"),
+    Decon: radarPolygon([[0.67, 0.44], [0.77, 0.44], [0.77, 0.56], [0.67, 0.56]], "lower", "absolute"),
+    Doors: radarPolygon([[0.43, 0.28], [0.58, 0.28], [0.58, 0.37], [0.43, 0.37]], "lower", "absolute"),
+    "B Site": radarPolygon([[0.43, 0.34], [0.65, 0.34], [0.65, 0.62], [0.43, 0.62]], "lower", "absolute"),
+    Secret: radarPolygon([[0.76, 0.31], [0.92, 0.31], [0.92, 0.74], [0.83, 0.74], [0.83, 0.44], [0.76, 0.44]], "lower", "absolute"),
   },
   Dust: {
     "A Long": radarPolygon([[0.8263, 0.4263], [0.855, 0.4375], [0.8325, 0.4925], [0.91, 0.4925], [0.9163, 0.2838], [0.8225, 0.275]]),
@@ -745,6 +747,7 @@ function loadStoredSnapshot() {
       liveLayoutMode: "broadcast",
       livePresentationMode: "semi",
       livePlaybackRate: 1.25,
+      soundDesignEnabled: false,
     };
   }
 
@@ -760,6 +763,7 @@ function loadStoredSnapshot() {
         liveLayoutMode: "broadcast",
         livePresentationMode: "semi",
         livePlaybackRate: 1.25,
+        soundDesignEnabled: false,
       };
     }
 
@@ -787,6 +791,7 @@ function loadStoredSnapshot() {
       liveLayoutMode: parsed.liveLayoutMode ?? "broadcast",
       livePresentationMode: parsed.livePresentationMode ?? "semi",
       livePlaybackRate: parsed.livePlaybackRate ?? 1.25,
+      soundDesignEnabled: parsed.soundDesignEnabled ?? false,
     };
   } catch {
     return {
@@ -798,6 +803,7 @@ function loadStoredSnapshot() {
       liveLayoutMode: "broadcast",
       livePresentationMode: "semi",
       livePlaybackRate: 1.25,
+      soundDesignEnabled: false,
     };
   }
 }
@@ -945,6 +951,7 @@ function App() {
   const [liveLayoutMode, setLiveLayoutMode] = useState(initialSnapshot.liveLayoutMode ?? "broadcast");
   const [livePresentationMode, setLivePresentationMode] = useState(initialSnapshot.livePresentationMode ?? "semi");
   const [livePlaybackRate, setLivePlaybackRate] = useState(initialSnapshot.livePlaybackRate ?? 1.25);
+  const [soundDesignEnabled, setSoundDesignEnabled] = useState(initialSnapshot.soundDesignEnabled ?? false);
   const [roundPlayback, setRoundPlayback] = useState(null);
   const [teamDraft, setTeamDraft] = useState(
     deepClone(state.teams.find((team) => team.id === state.selectedTeamId) ?? createBlankTeam())
@@ -964,6 +971,8 @@ function App() {
   const vetoStartTimeoutRef = useRef(null);
   const instantMatchHandledRef = useRef(null);
   const playbackTimersRef = useRef([]);
+  const audioContextRef = useRef(null);
+  const lastSoundCueRef = useRef(null);
   const t = (key) => (language === "ru" ? COPY_RU[key] : COPY[language]?.[key]) ?? COPY.en[key] ?? key;
 
   const pushToast = (message, tone = "success") => {
@@ -979,9 +988,105 @@ function App() {
     setLiveLayoutMode(mode === "mobile" ? "coach" : "broadcast");
   };
 
+  const playSoundCue = async (cue) => {
+    if (!soundDesignEnabled || typeof window === "undefined") {
+      return;
+    }
+
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) {
+      return;
+    }
+
+    audioContextRef.current ??= new AudioContextCtor();
+    const ctx = audioContextRef.current;
+
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        return;
+      }
+    }
+
+    const presets = {
+      kill: [
+        { frequency: 760, duration: 0.04, type: "triangle", gain: 0.02 },
+        { frequency: 620, duration: 0.05, type: "sine", gain: 0.014, delay: 0.045 },
+      ],
+      plant: [
+        { frequency: 420, duration: 0.08, type: "square", gain: 0.018 },
+        { frequency: 520, duration: 0.08, type: "triangle", gain: 0.014, delay: 0.09 },
+      ],
+      defuse: [
+        { frequency: 520, duration: 0.06, type: "triangle", gain: 0.018 },
+        { frequency: 760, duration: 0.08, type: "triangle", gain: 0.015, delay: 0.07 },
+      ],
+      clutch: [
+        { frequency: 660, duration: 0.06, type: "sawtooth", gain: 0.016 },
+        { frequency: 880, duration: 0.07, type: "triangle", gain: 0.016, delay: 0.08 },
+        { frequency: 1040, duration: 0.09, type: "triangle", gain: 0.015, delay: 0.16 },
+      ],
+    };
+
+    (presets[cue] ?? []).forEach((tone) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      const startAt = ctx.currentTime + (tone.delay ?? 0);
+      oscillator.type = tone.type;
+      oscillator.frequency.setValueAtTime(tone.frequency, startAt);
+      gainNode.gain.setValueAtTime(0.0001, startAt);
+      gainNode.gain.exponentialRampToValueAtTime(tone.gain, startAt + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, startAt + tone.duration);
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + tone.duration + 0.02);
+    });
+  };
+
   useEffect(() => {
     liveMatchRef.current = state.currentMatch;
   }, [state.currentMatch]);
+
+  useEffect(() => {
+    if (!soundDesignEnabled || state.activeView !== "live" || livePresentationMode !== "live") {
+      lastSoundCueRef.current = null;
+      return;
+    }
+
+    const currentEvent =
+      roundPlayback?.summary?.timeline?.[
+        Math.max(0, Math.min((roundPlayback?.summary?.timeline?.length ?? 1) - 1, roundPlayback?.frameIndex ?? -1))
+      ] ?? null;
+
+    if (!currentEvent) {
+      return;
+    }
+
+    const cue =
+      currentEvent.kind === "kill"
+        ? "kill"
+        : currentEvent.bombPlanted
+          ? "plant"
+          : currentEvent.defuse
+            ? "defuse"
+            : currentEvent.kind === "clutch"
+              ? "clutch"
+              : null;
+
+    if (!cue) {
+      return;
+    }
+
+    const cueId = `${roundPlayback?.summary?.roundNumber}:${currentEvent.id}:${cue}`;
+    if (lastSoundCueRef.current === cueId) {
+      return;
+    }
+
+    lastSoundCueRef.current = cueId;
+    void playSoundCue(cue);
+  }, [soundDesignEnabled, state.activeView, livePresentationMode, roundPlayback]);
 
   useEffect(() => {
     if (isNewTeam) {
@@ -1021,11 +1126,12 @@ function App() {
       liveLayoutMode,
       livePresentationMode,
       livePlaybackRate,
+      soundDesignEnabled,
       lastSavedAt: new Date().toISOString(),
     });
     window.localStorage.setItem(STORAGE_KEY, serialized);
     setLastSavedAt(JSON.parse(serialized).lastSavedAt);
-  }, [state, matchSetup, language, siteMode, liveLayoutMode, livePresentationMode, livePlaybackRate]);
+  }, [state, matchSetup, language, siteMode, liveLayoutMode, livePresentationMode, livePlaybackRate, soundDesignEnabled]);
 
   useEffect(() => {
     const phoneLiveMode =
@@ -1395,6 +1501,8 @@ function App() {
                 onPresentationModeChange={setLivePresentationMode}
                 playbackRate={livePlaybackRate}
                 onPlaybackRateChange={setLivePlaybackRate}
+                soundDesignEnabled={soundDesignEnabled}
+                onSoundDesignChange={setSoundDesignEnabled}
                 roundPlayback={roundPlayback}
                 fullscreen={phoneLiveMode}
                 siteMode={siteMode}
@@ -1514,6 +1622,11 @@ function renderLogo(logo, fallback = "T") {
 
 function classNames(...values) {
   return values.filter(Boolean).join(" ");
+}
+
+function roundMetric(value, digits = 0) {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
 }
 
 function normalizeRadarLookupKey(value) {
@@ -1750,6 +1863,377 @@ function buildRadarMarkers(events = [], mapName) {
     });
 
   return kills;
+}
+
+function weaponExpectancyWeight(weaponType) {
+  switch (weaponType) {
+    case "awp":
+      return 1.26;
+    case "rifle":
+      return 1.08;
+    case "smg":
+      return 0.93;
+    case "shotgun":
+      return 0.88;
+    case "pistol":
+      return 0.76;
+    default:
+      return 0.72;
+  }
+}
+
+function estimateTeamSnapshotScore(players, side, mapName, clockSeconds, bombPlanted) {
+  const alivePlayers = players.filter((player) => player.alive);
+  if (!alivePlayers.length) {
+    return 0.02;
+  }
+
+  const mapConfig = MAP_CONFIGS[mapName] ?? { baseT: 0.5, baseCT: 0.5 };
+  const sideBase = side === "CT" ? mapConfig.baseCT : mapConfig.baseT;
+  const structuralBias = side === "CT" ? 1.04 : 1;
+  const lateClockBias =
+    clockSeconds <= 24 ? (side === "CT" && !bombPlanted ? 1.11 : side === "T" ? 0.94 : 1) : 1;
+  const objectiveBias = bombPlanted ? (side === "T" ? 1.17 : 0.89) : 1;
+  const aliveRatio = alivePlayers.length / 5;
+
+  const power = alivePlayers.reduce((total, player) => {
+    const hpFactor = 0.34 + player.hp / 120;
+    const armorFactor = player.armor ? (player.helmet ? 1.12 : 1.06) : 0.94;
+    const utilityFactor = 0.94 + player.utilityCount * 0.05;
+    const ratingFactor = clamp((player.rating ?? 1) * 0.92, 0.64, 1.48);
+    const weaponFactor = weaponExpectancyWeight(player.weaponType);
+    return total + hpFactor * armorFactor * utilityFactor * ratingFactor * weaponFactor;
+  }, 0);
+
+  return power * (0.72 + aliveRatio * 0.72) * sideBase * structuralBias * lateClockBias * objectiveBias;
+}
+
+function estimateWinExpectancyFromSnapshot({
+  snapshot,
+  mapName,
+  sides,
+  clockLabel = "1:55",
+  bombPlanted = false,
+}) {
+  if (!snapshot?.teamA || !snapshot?.teamB) {
+    return {
+      teamA: 50,
+      teamB: 50,
+    };
+  }
+
+  const clockSeconds = clockLabelToSeconds(clockLabel);
+  const teamAScore = estimateTeamSnapshotScore(snapshot.teamA, sides.teamA, mapName, clockSeconds, bombPlanted);
+  const teamBScore = estimateTeamSnapshotScore(snapshot.teamB, sides.teamB, mapName, clockSeconds, bombPlanted);
+  const teamAWin = clamp(teamAScore / Math.max(0.01, teamAScore + teamBScore), 0.03, 0.97);
+
+  return {
+    teamA: roundMetric(teamAWin * 100, 0),
+    teamB: roundMetric((1 - teamAWin) * 100, 0),
+  };
+}
+
+function buildExpectancySeries(summary, mapName) {
+  if (!summary) {
+    return [];
+  }
+
+  const sides = summary.sides ?? { teamA: "CT", teamB: "T" };
+  const points = [];
+
+  if (summary.startLoadouts) {
+    const startExpectancy =
+      summary.preRoundExpectancy
+        ? {
+            teamA: roundMetric(summary.preRoundExpectancy.teamA * 100, 0),
+            teamB: roundMetric(summary.preRoundExpectancy.teamB * 100, 0),
+          }
+        : estimateWinExpectancyFromSnapshot({
+            snapshot: summary.startLoadouts,
+            mapName,
+            sides,
+            clockLabel: "1:55",
+            bombPlanted: false,
+          });
+
+    points.push({
+      id: `${summary.roundNumber}_start`,
+      label: "Freeze / buys locked",
+      clock: "1:55",
+      kind: "start",
+      teamA: startExpectancy.teamA,
+      teamB: startExpectancy.teamB,
+    });
+  }
+
+  let bombActive = false;
+  (summary.timeline ?? []).forEach((entry) => {
+    if (!entry.snapshot) {
+      return;
+    }
+
+    if (entry.bombPlanted) {
+      bombActive = true;
+    }
+
+    const expectancy = estimateWinExpectancyFromSnapshot({
+      snapshot: entry.snapshot,
+      mapName,
+      sides,
+      clockLabel: entry.clock,
+      bombPlanted: bombActive || entry.bombPlanted,
+    });
+
+    points.push({
+      id: entry.id,
+      label: entry.label,
+      clock: entry.clock,
+      kind: entry.kind,
+      teamA: expectancy.teamA,
+      teamB: expectancy.teamB,
+      openingKill: entry.openingKill,
+    });
+
+    if (entry.defuse || entry.bombExploded) {
+      bombActive = false;
+    }
+  });
+
+  return points;
+}
+
+function buildRoundSequence(rounds, pendingSummary = null) {
+  if (!pendingSummary) {
+    return rounds;
+  }
+
+  if (rounds.some((round) => round.roundNumber === pendingSummary.roundNumber)) {
+    return rounds;
+  }
+
+  return [...rounds, pendingSummary];
+}
+
+function buildPlayerFormLookup(rounds, pendingSummary = null) {
+  const lookup = {};
+  const relevantRounds = buildRoundSequence(rounds, pendingSummary).slice(-5);
+
+  relevantRounds.forEach((round) => {
+    ["teamA", "teamB"].forEach((teamKey) => {
+      (round.playerRoundStats?.[teamKey] ?? []).forEach((playerRound) => {
+        lookup[playerRound.id] ??= [];
+        lookup[playerRound.id].push(playerRound.formScore ?? 0);
+      });
+    });
+  });
+
+  Object.values(lookup).forEach((series) => {
+    while (series.length < 5) {
+      series.unshift(null);
+    }
+  });
+
+  return lookup;
+}
+
+function attachPlayerForm(players, lookup) {
+  return players.map((player) => ({
+    ...player,
+    formSeries: lookup[player.id] ?? [null, null, null, null, null],
+  }));
+}
+
+function averageForm(series = []) {
+  const values = series.filter((value) => value != null);
+  return values.length ? roundMetric(values.reduce((sumValue, value) => sumValue + value, 0) / values.length, 2) : 0;
+}
+
+function buildHeatmapClusters(map, sideFilter = "all") {
+  const markers = buildRadarMarkers(
+    map.rounds.flatMap((round) => round.timeline ?? []),
+    map.mapName
+  ).filter((marker) => sideFilter === "all" || marker.victimSide === sideFilter);
+
+  const grouped = {};
+  markers.forEach((marker) => {
+    const zoneKey = normalizeRadarLookupKey(marker.zone ?? marker.site ?? "unknown");
+    const key = `${marker.level}:${zoneKey}:${marker.victimSide ?? "UNK"}`;
+    grouped[key] ??= {
+      id: key,
+      level: marker.level,
+      side: marker.victimSide ?? "UNK",
+      zone: marker.zone ?? marker.site ?? "unknown",
+      x: 0,
+      y: 0,
+      count: 0,
+      labels: [],
+    };
+    grouped[key].x += marker.x;
+    grouped[key].y += marker.y;
+    grouped[key].count += 1;
+    grouped[key].labels.push(marker.label);
+  });
+
+  return Object.values(grouped)
+    .map((cluster) => ({
+      ...cluster,
+      x: cluster.x / Math.max(1, cluster.count),
+      y: cluster.y / Math.max(1, cluster.count),
+      title: `${cluster.zone} · ${cluster.count} kills`,
+    }))
+    .sort((left, right) => right.count - left.count);
+}
+
+function buildHighlightCards(results) {
+  const cards = [];
+
+  if (results.mvp) {
+    cards.push({
+      id: `mvp_${results.mvp.id}`,
+      weight: 9,
+      eyebrow: "Series MVP",
+      title: `${results.mvp.nickname} led the server`,
+      detail: `${results.mvp.teamTag} · ${results.mvp.kills} kills · ${results.mvp.rating} rating`,
+    });
+  }
+
+  results.maps.forEach((map) => {
+    map.rounds.forEach((round) => {
+      if (round.clutch) {
+        cards.push({
+          id: `${map.id}_clutch_${round.roundNumber}`,
+          weight: 8,
+          eyebrow: map.mapName,
+          title: `${round.clutch.nickname} closes a 1v${round.clutch.size}`,
+          detail: `Round ${round.displayRound} · ${round.winnerKey === "teamA" ? results.teamA.tag : results.teamB.tag} win the clutch round`,
+        });
+      }
+
+      const bestRoundPlayer = [...(round.playerRoundStats?.teamA ?? []), ...(round.playerRoundStats?.teamB ?? [])]
+        .sort((left, right) => right.kills - left.kills || right.damage - left.damage)[0];
+      if (bestRoundPlayer?.kills >= 3) {
+        cards.push({
+          id: `${map.id}_burst_${round.roundNumber}_${bestRoundPlayer.id}`,
+          weight: bestRoundPlayer.kills >= 4 ? 7 : 5,
+          eyebrow: map.mapName,
+          title: `${bestRoundPlayer.nickname} posts ${bestRoundPlayer.kills} in ${round.displayRound}`,
+          detail: `${bestRoundPlayer.damage} damage · ${round.strategy}`,
+        });
+      }
+
+      if (round.timeoutCalled) {
+        cards.push({
+          id: `${map.id}_timeout_${round.roundNumber}`,
+          weight: 4,
+          eyebrow: map.mapName,
+          title: `Tactical timeout before ${round.displayRound}`,
+          detail: `${round.timeoutCalled === "teamA" ? results.teamA.tag : results.teamB.tag} halt the slide and reset the callbook`,
+        });
+      }
+
+      if (["force", "eco"].includes(round.roundType?.[round.winnerKey])) {
+        cards.push({
+          id: `${map.id}_upset_${round.roundNumber}`,
+          weight: 6,
+          eyebrow: map.mapName,
+          title: `${round.winnerKey === "teamA" ? results.teamA.tag : results.teamB.tag} steal a ${round.roundType[round.winnerKey]} round`,
+          detail: `${round.displayRound} · ${reasonLabel(round.reason)}`,
+        });
+      }
+    });
+
+    const topMapPlayer = [...map.teamAPlayers, ...map.teamBPlayers].sort(
+      (left, right) => right.stats.rating - left.stats.rating
+    )[0];
+    if (topMapPlayer) {
+      cards.push({
+        id: `${map.id}_map_star_${topMapPlayer.id}`,
+        weight: 5,
+        eyebrow: map.mapName,
+        title: `${topMapPlayer.nickname} owned ${map.mapName}`,
+        detail: `${topMapPlayer.stats.kills} kills · ${topMapPlayer.stats.rating} rating`,
+      });
+    }
+  });
+
+  return cards
+    .sort((left, right) => right.weight - left.weight)
+    .filter((card, index, source) => source.findIndex((entry) => entry.title === card.title) === index)
+    .slice(0, 8);
+}
+
+function buildMapExpectancyCurve(map) {
+  return map.rounds.map((round) => ({
+    label: round.displayRound,
+    teamA: roundMetric((round.preRoundExpectancy?.teamA ?? 0.5) * 100, 0),
+    teamB: roundMetric((round.preRoundExpectancy?.teamB ?? 0.5) * 100, 0),
+    winner: round.winnerKey,
+  }));
+}
+
+function buildRoundSwing(roundSummary, mapName) {
+  const series = buildExpectancySeries(roundSummary, mapName);
+  if (!series.length) {
+    return null;
+  }
+
+  const values = series.map((point) => point.teamA);
+  const maxValue = Math.max(...values);
+  const minValue = Math.min(...values);
+  return {
+    roundNumber: roundSummary.roundNumber,
+    displayRound: roundSummary.displayRound,
+    mapName,
+    swing: roundMetric(maxValue - minValue, 0),
+    start: values[0],
+    finish: roundSummary.winnerKey === "teamA" ? 100 : 0,
+  };
+}
+
+function buildAnalystDesk(results) {
+  const rounds = results.maps.flatMap((map) =>
+    map.rounds
+      .map((roundSummary) => {
+        const swing = buildRoundSwing(roundSummary, map.mapName);
+        return swing ? { ...swing, summary: roundSummary } : null;
+      })
+      .filter(Boolean)
+  );
+
+  const biggestSwing = [...rounds].sort((left, right) => right.swing - left.swing)[0] ?? null;
+  const clutchLeader = [...results.players].sort(
+    (left, right) => right.clutchesWon - left.clutchesWon || right.rating - left.rating
+  )[0] ?? null;
+  const entryLeader = [...results.players].sort(
+    (left, right) => right.openingKills - left.openingKills || right.rating - left.rating
+  )[0] ?? null;
+
+  const pistols = results.maps.flatMap((map) =>
+    map.rounds.filter((round) => round.roundType?.teamA === "pistol" || round.roundType?.teamB === "pistol")
+  );
+  const pistolConversions = pistols.reduce(
+    (totals, pistolRound) => {
+      const map = results.maps.find((entry) => entry.mapName === pistolRound.mapName);
+      const followupRound = map?.rounds.find((round) => round.roundNumber === pistolRound.roundNumber + 1);
+      if (!followupRound) {
+        return totals;
+      }
+
+      totals.total += 1;
+      if (followupRound.winnerKey === pistolRound.winnerKey) {
+        totals.converted += 1;
+      }
+      return totals;
+    },
+    { converted: 0, total: 0 }
+  );
+
+  return {
+    biggestSwing,
+    clutchLeader,
+    entryLeader,
+    pistolConversions,
+  };
 }
 
 function formatRoundClock(totalSeconds) {
@@ -3116,6 +3600,8 @@ function LiveMatchView({
   onPresentationModeChange,
   playbackRate = 1.25,
   onPlaybackRateChange,
+  soundDesignEnabled = false,
+  onSoundDesignChange,
   roundPlayback = null,
   fullscreen = false,
   siteMode = "desktop",
@@ -3132,8 +3618,8 @@ function LiveMatchView({
       : null;
   const playbackSnapshot = playbackFrame?.snapshot ?? playbackSummary?.startLoadouts ?? null;
   const latestRound = playbackSummary ?? activeMap.lastRoundSummary;
-  const teamAPlayers = playbackSnapshot?.teamA ?? latestRound?.loadouts.teamA ?? liveRowsFromTeam(activeMap.teamAState);
-  const teamBPlayers = playbackSnapshot?.teamB ?? latestRound?.loadouts.teamB ?? liveRowsFromTeam(activeMap.teamBState);
+  const rawTeamAPlayers = playbackSnapshot?.teamA ?? latestRound?.loadouts.teamA ?? liveRowsFromTeam(activeMap.teamAState);
+  const rawTeamBPlayers = playbackSnapshot?.teamB ?? latestRound?.loadouts.teamB ?? liveRowsFromTeam(activeMap.teamBState);
   const teamAState = activeMap.teamAState;
   const teamBState = activeMap.teamBState;
   const roundClock =
@@ -3150,6 +3636,28 @@ function LiveMatchView({
     : latestRound?.timeline ?? [];
   const radarMarkers = buildRadarMarkers(roundTimelineEvents, activeMap.mapName);
   const latestRadarMarker = radarMarkers[radarMarkers.length - 1] ?? null;
+  const playerFormLookup = useMemo(
+    () => buildPlayerFormLookup(activeMap.rounds, playbackSummary),
+    [activeMap.rounds, playbackSummary]
+  );
+  const teamAPlayers = useMemo(
+    () => attachPlayerForm(rawTeamAPlayers, playerFormLookup),
+    [rawTeamAPlayers, playerFormLookup]
+  );
+  const teamBPlayers = useMemo(
+    () => attachPlayerForm(rawTeamBPlayers, playerFormLookup),
+    [rawTeamBPlayers, playerFormLookup]
+  );
+  const expectancySeries = useMemo(
+    () => buildExpectancySeries(playbackSummary ?? latestRound, activeMap.mapName),
+    [playbackSummary, latestRound, activeMap.mapName]
+  );
+  const currentExpectancyPoint =
+    expectancySeries[
+      playbackSummary
+        ? Math.max(0, Math.min(expectancySeries.length - 1, roundPlayback.frameIndex + 1))
+        : expectancySeries.length - 1
+    ] ?? expectancySeries[expectancySeries.length - 1] ?? null;
   const killFeedEntries = roundTimelineEvents
     .filter((entry) => entry.kind === "kill")
     .map((entry) => ({
@@ -3213,6 +3721,47 @@ function LiveMatchView({
         killFeedEntries={killFeedEntries}
         playbackRate={playbackRate}
         onPlaybackRateChange={onPlaybackRateChange}
+        soundDesignEnabled={soundDesignEnabled}
+        onSoundDesignChange={onSoundDesignChange}
+        expectancySeries={expectancySeries}
+        currentExpectancyPoint={currentExpectancyPoint}
+      />
+    );
+  }
+
+  if (layoutMode === "overlay") {
+    return (
+      <OverlayLiveMatchView
+        match={match}
+        activeMap={activeMap}
+        latestRound={latestRound}
+        teamAPlayers={teamAPlayers}
+        teamBPlayers={teamBPlayers}
+        teamAState={teamAState}
+        teamBState={teamBState}
+        roundClock={roundClock}
+        roundProgress={roundProgress}
+        roundClockLabel={roundClockLabel}
+        layoutMode={layoutMode}
+        onLayoutModeChange={onLayoutModeChange}
+        presentationMode={presentationMode}
+        onPresentationModeChange={onPresentationModeChange}
+        currentPlaybackEvent={currentPlaybackEvent}
+        feedEntries={feedEntries}
+        liveStatusLabel={liveStatusLabel}
+        playbackStepLabel={playbackStepLabel}
+        mobileSite={mobileSite}
+        siteMode={siteMode}
+        onSiteModeChange={onSiteModeChange}
+        radarMarkers={radarMarkers}
+        latestRadarMarker={latestRadarMarker}
+        killFeedEntries={killFeedEntries}
+        playbackRate={playbackRate}
+        onPlaybackRateChange={onPlaybackRateChange}
+        soundDesignEnabled={soundDesignEnabled}
+        onSoundDesignChange={onSoundDesignChange}
+        expectancySeries={expectancySeries}
+        currentExpectancyPoint={currentExpectancyPoint}
       />
     );
   }
@@ -3245,6 +3794,8 @@ function LiveMatchView({
         latestRadarMarker={latestRadarMarker}
         playbackRate={playbackRate}
         onPlaybackRateChange={onPlaybackRateChange}
+        soundDesignEnabled={soundDesignEnabled}
+        onSoundDesignChange={onSoundDesignChange}
       />
     );
   }
@@ -3268,6 +3819,7 @@ function LiveMatchView({
               <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
               <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
               <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
+              <SoundDesignSwitch enabled={soundDesignEnabled} onToggle={onSoundDesignChange} />
               <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} mobileSite={mobileSite} />
             </div>
           }
@@ -3325,7 +3877,7 @@ function LiveMatchView({
                 ))}
               </div>
             </Panel>
-            <Panel title={t("round_hud")} subtitle="Latest call, leaders, clutch state, and money flow." className="min-h-0 overflow-hidden p-3">
+            <Panel title={t("round_hud")} subtitle="Latest call, leaders, clutch state, and live expectancy." className="min-h-0 overflow-hidden p-3">
               {latestRound ? (
                 <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-3">
                   <div className="rounded-2xl border border-border bg-card/60 p-4">
@@ -3401,28 +3953,12 @@ function LiveMatchView({
                           : latestRound.highlight ?? "No special swing moment on the latest round."}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-border bg-card/60 p-4">
-                      <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Money Flow</div>
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
-                          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{match.teamA.tag}</div>
-                          <div className="mt-1 numbers text-lg text-text">
-                            {formatMoney(playbackSummary ? latestRound.economy.teamAEquipmentValue : latestRound.economy.teamATotalMoney)}
-                          </div>
-                        </div>
-                        <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
-                          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{match.teamB.tag}</div>
-                          <div className="mt-1 numbers text-lg text-text">
-                            {formatMoney(playbackSummary ? latestRound.economy.teamBEquipmentValue : latestRound.economy.teamBTotalMoney)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 text-sm text-muted">
-                        {playbackSummary
-                          ? `Round started at ${latestRound.scoreBefore.teamA}-${latestRound.scoreBefore.teamB}`
-                          : `Equip value ${formatMoney(latestRound.economy.teamAEquipmentValue)} / ${formatMoney(latestRound.economy.teamBEquipmentValue)}`}
-                      </div>
-                    </div>
+                    <WinExpectancyCard
+                      currentExpectancyPoint={currentExpectancyPoint}
+                      expectancySeries={expectancySeries}
+                      teamA={match.teamA}
+                      teamB={match.teamB}
+                    />
                   </div>
                 </div>
               ) : (
@@ -3541,11 +4077,15 @@ function CoachLiveMatchView({
   playbackStepLabel = null,
   playbackRate = 1.25,
   onPlaybackRateChange,
+  soundDesignEnabled = false,
+  onSoundDesignChange,
   mobileSite = false,
   siteMode = "desktop",
   onSiteModeChange,
   radarMarkers = [],
   latestRadarMarker = null,
+  expectancySeries = [],
+  currentExpectancyPoint = null,
 }) {
   const isLandscape = useIsLandscape(mobileSite);
   const [radarExpanded, setRadarExpanded] = useState(false);
@@ -3610,6 +4150,7 @@ function CoachLiveMatchView({
             <div className="flex flex-wrap items-center justify-end gap-2">
               <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
               <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
+              <SoundDesignSwitch enabled={soundDesignEnabled} onToggle={onSoundDesignChange} />
             </div>
           </div>
           <Panel
@@ -3654,6 +4195,25 @@ function CoachLiveMatchView({
                   </div>
                   <div className="rounded-xl border border-border bg-surface/70 px-3 py-2 text-muted">
                     Bomb: <span className="text-text">{latestRound?.bombPlanted ? latestRound?.plantSite ?? "Planted" : "No plant"}</span>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface/70 px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Round Win Expectancy</div>
+                    <div className="numbers text-sm text-text">
+                      {match.teamA.tag} {currentExpectancyPoint?.teamA ?? 50}% · {match.teamB.tag} {currentExpectancyPoint?.teamB ?? 50}%
+                    </div>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-card">
+                    <div className="flex h-full">
+                      <div className="bg-accent" style={{ width: `${currentExpectancyPoint?.teamA ?? 50}%` }} />
+                      <div className="bg-sky-400" style={{ width: `${currentExpectancyPoint?.teamB ?? 50}%` }} />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-xs text-muted">
+                    {expectancySeries.length
+                      ? `${expectancySeries.length} checkpoints tracked through the round playback.`
+                      : "Expectancy will update once the round timeline begins."}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-border bg-card/60 px-3 py-3 text-sm text-muted">
@@ -3722,6 +4282,185 @@ function CoachLiveMatchView({
   );
 }
 
+function OverlayLiveMatchView({
+  match,
+  activeMap,
+  latestRound,
+  teamAPlayers,
+  teamBPlayers,
+  teamAState,
+  teamBState,
+  roundClock,
+  roundProgress,
+  roundClockLabel,
+  layoutMode,
+  onLayoutModeChange,
+  presentationMode,
+  onPresentationModeChange,
+  currentPlaybackEvent = null,
+  feedEntries = [],
+  killFeedEntries = [],
+  liveStatusLabel = null,
+  playbackStepLabel = null,
+  playbackRate = 1.25,
+  onPlaybackRateChange,
+  soundDesignEnabled = false,
+  onSoundDesignChange,
+  siteMode = "desktop",
+  onSiteModeChange,
+  radarMarkers = [],
+  latestRadarMarker = null,
+  expectancySeries = [],
+  currentExpectancyPoint = null,
+}) {
+  const [radarExpanded, setRadarExpanded] = useState(false);
+  const currentFrameIndex = Math.max(0, expectancySeries.length - 1);
+
+  return (
+    <div className="grid h-[calc(100vh-102px)] min-h-0 grid-rows-[96px_minmax(0,1fr)_260px] gap-3 overflow-hidden">
+      <div className="panel flex items-center justify-between gap-4 px-4 py-4">
+        <div className="flex items-center gap-4">
+          <div className="numbers text-4xl text-accent">{activeMap.score.teamA}</div>
+          <div>
+            <div className="font-display text-2xl text-text">{match.teamA.tag}</div>
+            <div className={classNames("text-[11px] uppercase tracking-[0.18em]", sideToneClasses(teamAState.side).text)}>
+              {teamAState.side} · {teamAPlayers.filter((player) => player.alive).length} alive
+            </div>
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="font-display text-3xl text-accent">{activeMap.mapName}</div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-muted">
+            {latestRound?.displayRound ?? `R${activeMap.roundNumber}`} · {liveStatusLabel ?? "Broadcast Overlay"}{playbackStepLabel ? ` · ${playbackStepLabel}` : ""}
+          </div>
+          <div className={classNames("mt-2 numbers text-2xl", roundClock <= 10 ? "text-red-400" : "text-text")}>{roundClockLabel}</div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="font-display text-2xl text-text">{match.teamB.tag}</div>
+            <div className={classNames("text-[11px] uppercase tracking-[0.18em]", sideToneClasses(teamBState.side).text)}>
+              {teamBState.side} · {teamBPlayers.filter((player) => player.alive).length} alive
+            </div>
+          </div>
+          <div className="numbers text-4xl text-sky-300">{activeMap.score.teamB}</div>
+        </div>
+      </div>
+      <div className="grid min-h-0 grid-cols-[240px_minmax(0,1fr)_340px] gap-3 overflow-hidden">
+        <CoachRosterColumn team={match.teamA} players={teamAPlayers} side={teamAState.side} />
+        <Panel
+          title="Broadcast Overlay"
+          subtitle="Radar-first stream layout with expectancy, timeline, and clean kill calls."
+          className="min-h-0 overflow-hidden p-3"
+          action={
+            <div className="flex items-center gap-2">
+              <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
+              <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
+              <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
+              <SoundDesignSwitch enabled={soundDesignEnabled} onToggle={onSoundDesignChange} />
+              <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} />
+              <button
+                type="button"
+                onClick={() => setRadarExpanded(true)}
+                className="rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-accent transition hover:border-accent hover:bg-accent/15"
+              >
+                Open Radar
+              </button>
+            </div>
+          }
+        >
+          <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3">
+            <RadarPanel
+              mapName={activeMap.mapName}
+              markers={radarMarkers}
+              latestMarker={latestRadarMarker}
+              sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+              showSidebar={false}
+              showSummary={false}
+            />
+            <div className="grid grid-cols-[minmax(0,1fr)_380px] gap-3">
+              <ObserverTimelinePanel
+                summary={latestRound}
+                currentFrameIndex={currentFrameIndex}
+                title="Observer Timeline"
+                subtitle="Overlay checkpoints for the current round."
+              />
+              <WinExpectancyCard
+                currentExpectancyPoint={currentExpectancyPoint}
+                expectancySeries={expectancySeries}
+                teamA={match.teamA}
+                teamB={match.teamB}
+              />
+            </div>
+          </div>
+        </Panel>
+        <div className="grid min-h-0 grid-rows-[300px_minmax(0,1fr)] gap-3 overflow-hidden">
+          <CoachRosterColumn team={match.teamB} players={teamBPlayers} side={teamBState.side} reverse />
+          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 overflow-hidden">
+            <Panel title="Kill Feed" subtitle="Latest frags, weapons, and side losses." className="flex min-h-0 flex-col overflow-hidden p-3">
+              <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {killFeedEntries.length ? (
+                  killFeedEntries.slice(0, 10).map((entry) => (
+                    <div key={entry.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="numbers text-[11px] text-accent">[{entry.clock}]</div>
+                        <div
+                          className={classNames(
+                            "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]",
+                            entry.victimSide === "CT" ? "bg-sky-500/10 text-sky-300" : "bg-accent/10 text-accent"
+                          )}
+                        >
+                          {entry.victimSide === "CT" ? "CT down" : "T down"}
+                        </div>
+                      </div>
+                      <div className="mt-1 text-sm text-text">
+                        <span className="font-semibold">{entry.killerNickname ?? "Unknown"}</span>{" "}
+                        <span className="text-accent">[{entry.weaponLabel ?? "UTIL"}]</span>{" "}
+                        <span className="text-muted">vs</span>{" "}
+                        <span className="font-semibold">{entry.victimNickname ?? "Unknown"}</span>
+                      </div>
+                      <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted">{entry.zone ?? entry.site ?? "mid"}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted">
+                    Waiting for the first frag.
+                  </div>
+                )}
+              </div>
+            </Panel>
+            <Panel title="Live Feed" subtitle="Caster-ready round narration." className="flex min-h-0 flex-col overflow-hidden p-3">
+              <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {feedEntries.slice(0, 10).map((log) => (
+                  <div key={log.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
+                    <div className="numbers text-[11px] text-accent">[{log.clock}] {log.mapName} {`R${log.roundNumber}`}</div>
+                    <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          </div>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-border bg-card/60 px-4 py-3">
+        <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-muted">Round Progress</div>
+        <div className="h-2 overflow-hidden rounded-full bg-surface">
+          <div className={classNames("h-full rounded-full transition-all", roundClock <= 10 ? "bg-red-500" : "bg-accent")} style={{ width: `${Math.max(4, roundProgress * 100)}%` }} />
+        </div>
+        <div className="mt-2 text-sm text-muted">{currentPlaybackEvent?.label ?? latestRound?.highlight ?? "Overlay tracks the round event by event."}</div>
+      </div>
+      {radarExpanded && (
+        <RadarExpandedModal
+          mapName={activeMap.mapName}
+          markers={radarMarkers}
+          latestMarker={latestRadarMarker}
+          sideLookup={{ teamA: teamAState.side, teamB: teamBState.side }}
+          onClose={() => setRadarExpanded(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 function CoachRosterColumn({ team, players, side, reverse = false, mobile = false }) {
   const tone = sideToneClasses(side);
   return (
@@ -3758,6 +4497,7 @@ function CoachPlayerRow({ player, side, reverse = false, mobile = false }) {
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface">
         <div className={classNames("h-full rounded-full", tone.bar)} style={{ width: `${player.alive ? player.hp : 0}%` }} />
       </div>
+      <PlayerFormStrip series={player.formSeries} reverse={reverse} compact={mobile} />
       <div className={classNames("mt-2 flex items-center justify-between gap-2 text-[11px]", reverse && "flex-row-reverse")}>
         <span className="text-muted">{player.alive ? `${player.hp} HP` : "OUT"}</span>
         <span className="text-muted">{player.armor ? (player.helmet ? "Armor+H" : "Armor") : "No Armor"} · U {player.utilityCount}</span>
@@ -3792,6 +4532,7 @@ function LayoutModeSwitch({ layoutMode, onChange, compact = false, mobileSite = 
       ]
     : [
         { id: "broadcast", label: compact ? "Desk" : "Broadcast" },
+        { id: "overlay", label: "Overlay" },
         { id: "coach", label: "Coach" },
         { id: "phone", label: "Phone" },
       ];
@@ -3900,6 +4641,24 @@ function PlaybackSpeedSwitch({ value, onChange, compact = false }) {
   );
 }
 
+function SoundDesignSwitch({ enabled, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle?.(!enabled)}
+      className={classNames(
+        "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition",
+        enabled
+          ? "border-accent bg-accent/10 text-accent"
+          : "border-border bg-card/70 text-muted hover:text-text"
+      )}
+    >
+      {enabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+      {enabled ? "Sound On" : "Sound Off"}
+    </button>
+  );
+}
+
 function PhoneLandscapeLiveMatchView({
   match,
   activeMap,
@@ -3916,6 +4675,8 @@ function PhoneLandscapeLiveMatchView({
   onPresentationModeChange,
   playbackRate = 1.25,
   onPlaybackRateChange,
+  soundDesignEnabled = false,
+  onSoundDesignChange,
   currentPlaybackEvent = null,
   feedEntries = [],
   liveStatusLabel = null,
@@ -3966,6 +4727,8 @@ function PhoneLandscapeLiveMatchView({
         latestRadarMarker={latestRadarMarker}
         playbackRate={playbackRate}
         onPlaybackRateChange={onPlaybackRateChange}
+        soundDesignEnabled={soundDesignEnabled}
+        onSoundDesignChange={onSoundDesignChange}
       />
     );
   }
@@ -4014,6 +4777,7 @@ function PhoneLandscapeLiveMatchView({
             <div className="mt-2 flex items-center justify-end gap-2">
               <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
               <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
+              <SoundDesignSwitch enabled={soundDesignEnabled} onToggle={onSoundDesignChange} />
               <LayoutModeSwitch layoutMode={layoutMode} onChange={onLayoutModeChange} compact mobileSite={mobileSite} />
             </div>
           </div>
@@ -4196,6 +4960,8 @@ function MobileLiveMatchView({
   onPresentationModeChange,
   playbackRate = 1.25,
   onPlaybackRateChange,
+  soundDesignEnabled = false,
+  onSoundDesignChange,
   currentPlaybackEvent = null,
   feedEntries = [],
   liveStatusLabel = null,
@@ -4221,6 +4987,7 @@ function MobileLiveMatchView({
             <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
             <PresentationModeSwitch mode={presentationMode} onChange={onPresentationModeChange} />
             <PlaybackSpeedSwitch value={playbackRate} onChange={onPlaybackRateChange} compact />
+            <SoundDesignSwitch enabled={soundDesignEnabled} onToggle={onSoundDesignChange} />
           </div>
         </div>
         <div className="panel rounded-2xl p-2">
@@ -4529,6 +5296,47 @@ function weaponBadgeClasses(weaponType) {
   return "bg-white/10 text-white";
 }
 
+function formBarTone(value) {
+  if (value == null) {
+    return "bg-white/8";
+  }
+
+  if (value >= 2) {
+    return "bg-emerald-400";
+  }
+
+  if (value >= 1.2) {
+    return "bg-accent";
+  }
+
+  if (value >= 0.7) {
+    return "bg-sky-400";
+  }
+
+  return "bg-red-400";
+}
+
+function PlayerFormStrip({ series = [], reverse = false, compact = false }) {
+  const averageValue = series.some((value) => value != null) ? averageForm(series) : null;
+
+  return (
+    <div className={classNames("mt-2 flex items-center justify-between gap-3", reverse && "flex-row-reverse")}>
+      <div className="flex items-end gap-1">
+        {series.map((value, index) => (
+          <div
+            key={`${index}_${value ?? "empty"}`}
+            className={classNames("w-2 rounded-full transition-all", formBarTone(value))}
+            style={{ height: `${value == null ? 5 : clamp(6 + value * 8, 6, compact ? 18 : 24)}px` }}
+          />
+        ))}
+      </div>
+      <div className="numbers text-[10px] uppercase tracking-[0.16em] text-muted">
+        Form {averageValue != null ? averageValue : "--"}
+      </div>
+    </div>
+  );
+}
+
 function BroadcastTeamColumn({ team, score, side, players, coach, timeoutsRemaining, reverse = false }) {
   const tone = sideToneClasses(side);
   const totalMoney = players.reduce((sum, player) => sum + player.money, 0);
@@ -4607,6 +5415,7 @@ function BroadcastPlayerCard({ player, side, reverse = false }) {
             style={{ width: `${player.alive ? player.hp : 0}%` }}
           />
         </div>
+        <PlayerFormStrip series={player.formSeries} reverse={reverse} />
       </div>
       <div className={classNames("mt-2 flex items-center justify-between gap-3 text-[11px]", reverse && "flex-row-reverse")}>
         <span className="numbers text-text">
@@ -4633,12 +5442,111 @@ function LeaderCard({ title, nickname, rating, side }) {
   );
 }
 
+function WinExpectancyCard({ currentExpectancyPoint, expectancySeries = [], teamA, teamB }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card/60 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] uppercase tracking-[0.2em] text-muted">Round Win Expectancy</div>
+        <div className="numbers text-xs text-muted">
+          {expectancySeries.length ? `${expectancySeries.length} nodes` : "Live"}
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{teamA.tag}</div>
+          <div className="mt-1 numbers text-2xl text-accent">{currentExpectancyPoint?.teamA ?? 50}%</div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{teamB.tag}</div>
+          <div className="mt-1 numbers text-2xl text-sky-300">{currentExpectancyPoint?.teamB ?? 50}%</div>
+        </div>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface">
+        <div className="flex h-full">
+          <div className="bg-accent" style={{ width: `${currentExpectancyPoint?.teamA ?? 50}%` }} />
+          <div className="bg-sky-400" style={{ width: `${currentExpectancyPoint?.teamB ?? 50}%` }} />
+        </div>
+      </div>
+      <div className="mt-3 h-[110px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={expectancySeries}>
+            <CartesianGrid stroke="rgba(255,255,255,0.05)" />
+            <XAxis dataKey="clock" hide />
+            <YAxis domain={[0, 100]} hide />
+            <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.2} dot={false} />
+            <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function ObserverTimelinePanel({
+  summary,
+  currentFrameIndex = 0,
+  onFrameChange = null,
+  title = "Observer Timeline",
+  subtitle = "Key checkpoints through the round.",
+}) {
+  const events = (summary?.timeline ?? []).filter((entry) => entry.snapshot);
+  const maxIndex = Math.max(0, events.length - 1);
+  const safeIndex = Math.max(0, Math.min(maxIndex, currentFrameIndex));
+  const activeEvent = events[safeIndex] ?? null;
+
+  return (
+    <Panel title={title} subtitle={subtitle} className="overflow-hidden p-3">
+      {events.length ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 text-xs text-muted">
+            <span>{activeEvent?.clock ?? "1:55"}</span>
+            <span className="numbers text-text">
+              {safeIndex + 1}/{events.length}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={maxIndex}
+            value={safeIndex}
+            onChange={(event) => onFrameChange?.(Number(event.target.value))}
+            disabled={!onFrameChange}
+            className="w-full accent-[#f5a623]"
+          />
+          <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-1">
+            {events.map((entry, index) => (
+              <button
+                key={entry.id}
+                type="button"
+                onClick={() => onFrameChange?.(index)}
+                disabled={!onFrameChange}
+                className={classNames(
+                  "min-w-[160px] rounded-xl border px-3 py-2 text-left transition",
+                  index === safeIndex ? "border-accent bg-accent/10" : "border-border bg-card/60"
+                )}
+              >
+                <div className="numbers text-[11px] text-accent">[{entry.clock}]</div>
+                <div className="mt-1 line-clamp-2 text-sm text-text">{entry.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">
+          Timeline becomes available once the round has event snapshots.
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function RadarImageStage({
   src,
   alt,
   mapName,
   level = "upper",
   markers,
+  heatClusters = [],
   sideLookup,
   compact = false,
   expanded = false,
@@ -4708,6 +5616,16 @@ function RadarImageStage({
             maxWidth: "none",
           }}
         />
+        {heatClusters.map((cluster) => (
+          <RadarHeatmapMarker
+            key={cluster.id}
+            cluster={cluster}
+            compact={compact}
+            expanded={expanded}
+            imageFrame={{ left: 0, top: 0, width: imageFrame.width, height: imageFrame.height }}
+            viewBox={viewBox}
+          />
+        ))}
         {markers.map((marker) => (
           <RadarDeathMarker
             key={marker.id}
@@ -4904,6 +5822,38 @@ function RadarDeathMarker({ marker, victimSide, compact = false, expanded = fals
   );
 }
 
+function RadarHeatmapMarker({ cluster, compact = false, expanded = false, imageFrame, viewBox }) {
+  const width = imageFrame?.width ?? 0;
+  const height = imageFrame?.height ?? 0;
+  if (!width || !height) {
+    return null;
+  }
+
+  const normalizedX = clamp((cluster.x - viewBox.left) / viewBox.width, 0.02, 0.98);
+  const normalizedY = clamp((cluster.y - viewBox.top) / viewBox.height, 0.02, 0.98);
+  const size = expanded ? clamp(18 + cluster.count * 5, 18, 54) : compact ? clamp(12 + cluster.count * 4, 12, 32) : clamp(16 + cluster.count * 4, 16, 42);
+  const tone =
+    cluster.side === "CT"
+      ? "bg-sky-400/35 shadow-[0_0_24px_rgba(91,141,217,0.55)]"
+      : cluster.side === "T"
+        ? "bg-accent/35 shadow-[0_0_24px_rgba(245,166,35,0.55)]"
+        : "bg-white/20 shadow-[0_0_18px_rgba(255,255,255,0.25)]";
+
+  return (
+    <div
+      className="pointer-events-none absolute"
+      style={{
+        left: imageFrame.left + normalizedX * width,
+        top: imageFrame.top + normalizedY * height,
+        transform: "translate(-50%, -50%)",
+      }}
+      title={cluster.title}
+    >
+      <div className={classNames("rounded-full border border-white/10 backdrop-blur-sm", tone)} style={{ width: size, height: size }} />
+    </div>
+  );
+}
+
 function RadarExpandedModal({ mapName, markers, latestMarker, sideLookup, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-md">
@@ -4936,11 +5886,440 @@ function RadarExpandedModal({ mapName, markers, latestMarker, sideLookup, onClos
   );
 }
 
+function RadarHeatmapPanel({ mapName, clusters, sideFilter = "all" }) {
+  const assets = RADAR_ASSETS[mapName];
+  const upperClusters = clusters.filter((cluster) => cluster.level !== "lower");
+  const lowerClusters = clusters.filter((cluster) => cluster.level === "lower");
+  const splitLevels = Boolean(assets?.lower);
+
+  if (!assets?.upper) {
+    return (
+      <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-border px-4 text-center text-sm text-muted">
+        Radar asset is missing for {mapName}.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_220px] gap-3">
+      <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-[#050608] p-3">
+        <div className={classNames("grid h-full w-full min-h-0 gap-3", splitLevels ? "grid-cols-[minmax(0,1fr)_220px]" : "grid-cols-1")}>
+          <div className="min-h-0 overflow-hidden rounded-xl">
+            <RadarImageStage
+              src={assets.upper}
+              alt={`${mapName} heatmap`}
+              mapName={mapName}
+              level="upper"
+              markers={[]}
+              heatClusters={upperClusters}
+              sideLookup={{}}
+              expanded
+              label="Upper"
+            />
+          </div>
+          {splitLevels && (
+            <div className="min-h-0 overflow-hidden rounded-xl border border-border bg-[#050608]">
+              <RadarImageStage
+                src={assets.lower}
+                alt={`${mapName} lower heatmap`}
+                mapName={mapName}
+                level="lower"
+                markers={[]}
+                heatClusters={lowerClusters}
+                sideLookup={{}}
+                compact
+                expanded
+                label="Lower"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
+        <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Heatmap Filter</div>
+          <div className="mt-2 text-sm text-text">{sideFilter === "all" ? "All deaths" : sideFilter === "CT" ? "CT deaths" : "T deaths"}</div>
+        </div>
+        <div className="min-h-0 rounded-2xl border border-border bg-card/60 p-3">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-muted">Hot Zones</div>
+          <div className="scrollbar-thin h-full space-y-2 overflow-y-auto pr-1">
+            {clusters.length ? (
+              clusters.slice(0, 10).map((cluster) => (
+                <div key={cluster.id} className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="truncate text-sm text-text">{cluster.zone}</div>
+                    <div className="numbers text-xs text-accent">{cluster.count}</div>
+                  </div>
+                  <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted">
+                    {cluster.side === "CT" ? "CT deaths" : cluster.side === "T" ? "T deaths" : "mixed"}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted">
+                No kill clusters available for this filter.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResultsModeSwitch({ mode, onChange }) {
+  const modes = [
+    { id: "overview", label: "Overview" },
+    { id: "analyst", label: "Analyst Desk" },
+    { id: "heatmaps", label: "Heatmaps" },
+  ];
+
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
+      {modes.map((entry) => (
+        <button
+          key={entry.id}
+          type="button"
+          onClick={() => onChange(entry.id)}
+          className={classNames(
+            "rounded-lg border px-4 py-2 text-xs uppercase tracking-[0.16em] transition",
+            mode === entry.id ? "border-accent bg-accent/10 text-accent" : "border-transparent text-muted hover:text-text"
+          )}
+        >
+          {entry.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PlayerFormBoard({ map }) {
+  const formLookup = useMemo(() => buildPlayerFormLookup(map.rounds), [map.rounds]);
+  const rows = useMemo(
+    () =>
+      [...map.teamAPlayers, ...map.teamBPlayers]
+        .map((player) => ({
+          id: player.id,
+          nickname: player.nickname,
+          teamTag: player.teamTag ?? "",
+          role: player.role,
+          formSeries: formLookup[player.id] ?? [null, null, null, null, null],
+          formAverage: averageForm(formLookup[player.id] ?? []),
+        }))
+        .sort((left, right) => right.formAverage - left.formAverage)
+        .slice(0, 10),
+    [formLookup, map.teamAPlayers, map.teamBPlayers]
+  );
+
+  return (
+    <Panel title="Player Form" subtitle="Last five rounds on the selected map." className="overflow-hidden p-3">
+      <div className="space-y-2">
+        {rows.map((player) => (
+          <div key={player.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-display text-xl text-text">{player.nickname}</div>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted">{player.role}</div>
+              </div>
+              <div className="numbers text-sm text-accent">{player.formAverage}</div>
+            </div>
+            <PlayerFormStrip series={player.formSeries} />
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function AnalystDeskView({ results, mobile = false }) {
+  const analyst = useMemo(() => buildAnalystDesk(results), [results]);
+  const [selectedMapId, setSelectedMapId] = useState(results.maps[0]?.id ?? null);
+  const selectedMap = results.maps.find((map) => map.id === selectedMapId) ?? results.maps[0];
+  const [selectedRoundNumber, setSelectedRoundNumber] = useState(selectedMap?.rounds.at(-1)?.roundNumber ?? null);
+
+  useEffect(() => {
+    setSelectedRoundNumber(selectedMap?.rounds.at(-1)?.roundNumber ?? null);
+  }, [selectedMap?.id]);
+
+  const selectedRound =
+    selectedMap?.rounds.find((roundSummary) => roundSummary.roundNumber === selectedRoundNumber) ??
+    selectedMap?.rounds.at(-1) ??
+    null;
+  const observerEvents = useMemo(
+    () => (selectedRound?.timeline ?? []).filter((entry) => entry.snapshot),
+    [selectedRound]
+  );
+  const [observerFrameIndex, setObserverFrameIndex] = useState(Math.max(0, observerEvents.length - 1));
+
+  useEffect(() => {
+    setObserverFrameIndex(Math.max(0, observerEvents.length - 1));
+  }, [selectedRound?.roundNumber, observerEvents.length]);
+
+  const activeObserverEvent = observerEvents[Math.max(0, Math.min(observerEvents.length - 1, observerFrameIndex))] ?? null;
+  const observerMarkers = useMemo(
+    () =>
+      buildRadarMarkers(
+        observerEvents.slice(0, Math.max(0, Math.min(observerEvents.length, observerFrameIndex + 1))),
+        selectedMap?.mapName ?? "Mirage"
+      ),
+    [observerEvents, observerFrameIndex, selectedMap?.mapName]
+  );
+  const observerLatestMarker = observerMarkers[observerMarkers.length - 1] ?? null;
+  const roundExpectancySeries = useMemo(
+    () => buildExpectancySeries(selectedRound, selectedMap?.mapName ?? "Mirage"),
+    [selectedRound, selectedMap?.mapName]
+  );
+  const observerExpectancy =
+    roundExpectancySeries[
+      Math.max(0, Math.min(roundExpectancySeries.length - 1, observerFrameIndex + 1))
+    ] ?? roundExpectancySeries[roundExpectancySeries.length - 1] ?? null;
+  const mapExpectancyCurve = useMemo(() => buildMapExpectancyCurve(selectedMap), [selectedMap]);
+  const mapSwings = useMemo(
+    () =>
+      selectedMap.rounds
+        .map((roundSummary) => buildRoundSwing(roundSummary, selectedMap.mapName))
+        .filter(Boolean)
+        .sort((left, right) => right.swing - left.swing)
+        .slice(0, 5),
+    [selectedMap]
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2">
+        {results.maps.map((map) => (
+          <button
+            key={map.id}
+            type="button"
+            onClick={() => setSelectedMapId(map.id)}
+            className={classNames(
+              "rounded-xl border px-4 py-2 text-sm transition",
+              selectedMap.id === map.id ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
+            )}
+          >
+            {map.mapName}
+          </button>
+        ))}
+      </div>
+      <div className={classNames("grid gap-3", mobile ? "grid-cols-1" : "grid-cols-4")}>
+        <div className="rounded-2xl border border-border bg-card/60 p-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Biggest Swing</div>
+          <div className="mt-2 font-display text-2xl text-text">
+            {analyst.biggestSwing ? `${analyst.biggestSwing.mapName} ${analyst.biggestSwing.displayRound}` : "n/a"}
+          </div>
+          <div className="mt-1 text-sm text-muted">{analyst.biggestSwing ? `${analyst.biggestSwing.swing}% expectancy swing` : "Waiting for played rounds."}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 p-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Clutch Leader</div>
+          <div className="mt-2 font-display text-2xl text-text">{analyst.clutchLeader?.nickname ?? "n/a"}</div>
+          <div className="mt-1 text-sm text-muted">{analyst.clutchLeader ? `${analyst.clutchLeader.clutchesWon} clutches won` : "No clutches recorded."}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 p-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Opening Edge</div>
+          <div className="mt-2 font-display text-2xl text-text">{analyst.entryLeader?.nickname ?? "n/a"}</div>
+          <div className="mt-1 text-sm text-muted">{analyst.entryLeader ? `${analyst.entryLeader.openingKills} opening kills` : "No opener data yet."}</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card/60 p-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Pistol Conversion</div>
+          <div className="mt-2 font-display text-2xl text-text">
+            {analyst.pistolConversions.total ? `${Math.round((analyst.pistolConversions.converted / analyst.pistolConversions.total) * 100)}%` : "n/a"}
+          </div>
+          <div className="mt-1 text-sm text-muted">
+            {analyst.pistolConversions.total
+              ? `${analyst.pistolConversions.converted}/${analyst.pistolConversions.total} pistol follow-ups converted`
+              : "No pistols recorded."}
+          </div>
+        </div>
+      </div>
+      <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[1.15fr_0.85fr]")}>
+        <div className="space-y-6">
+          <Panel title="Round Review" subtitle="Replay any played round from the selected map." className="overflow-hidden p-3">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {[...selectedMap.rounds].reverse().slice(0, 15).map((roundSummary) => (
+                <button
+                  key={`${selectedMap.id}_${roundSummary.roundNumber}`}
+                  type="button"
+                  onClick={() => setSelectedRoundNumber(roundSummary.roundNumber)}
+                  className={classNames(
+                    "rounded-xl border px-3 py-1.5 text-xs uppercase tracking-[0.16em] transition",
+                    selectedRound?.roundNumber === roundSummary.roundNumber
+                      ? "border-accent bg-accent/10 text-accent"
+                      : "border-border text-muted"
+                  )}
+                >
+                  {roundSummary.displayRound}
+                </button>
+              ))}
+            </div>
+            {selectedRound ? (
+              <div className="grid gap-3">
+                <RadarPanel
+                  mapName={selectedMap.mapName}
+                  markers={observerMarkers}
+                  latestMarker={observerLatestMarker}
+                  sideLookup={selectedRound.sides ?? { teamA: "CT", teamB: "T" }}
+                  showSidebar={false}
+                  showSummary={false}
+                />
+                <div className={classNames("grid gap-3", mobile ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_320px]")}>
+                  <ObserverTimelinePanel
+                    summary={selectedRound}
+                    currentFrameIndex={observerFrameIndex}
+                    onFrameChange={setObserverFrameIndex}
+                    title="Observer Timeline"
+                    subtitle="Scrub through the round event by event."
+                  />
+                  <div className="rounded-2xl border border-border bg-card/60 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Selected Event</div>
+                    <div className="mt-2 font-display text-2xl text-text">{activeObserverEvent?.clock ?? "1:55"}</div>
+                    <div className="mt-2 text-sm leading-6 text-text">{activeObserverEvent?.label ?? selectedRound.highlight ?? "Move the timeline to inspect the round."}</div>
+                    <div className="mt-4 rounded-xl border border-border bg-surface/70 px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-muted">Round Win Expectancy</div>
+                      <div className="mt-1 numbers text-lg text-text">
+                        {results.teamA.tag} {observerExpectancy?.teamA ?? 50}% · {results.teamB.tag} {observerExpectancy?.teamB ?? 50}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">
+                No played rounds available for review on this map yet.
+              </div>
+            )}
+          </Panel>
+          <PlayerFormBoard map={selectedMap} />
+        </div>
+        <div className="space-y-6">
+          <Panel title="Round Win Expectancy" subtitle="Pre-round expectation curve across the selected map." className="overflow-hidden p-3">
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={mapExpectancyCurve}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+                  <XAxis dataKey="label" stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} stroke="#6b7280" tick={{ fill: "#6b7280", fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "#111318",
+                      border: "1px solid #2a2d36",
+                      borderRadius: 16,
+                      color: "#e8eaf0",
+                    }}
+                  />
+                  <Line type="monotone" dataKey="teamA" stroke="#f5a623" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="teamB" stroke="#5b8dd9" strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-3 grid gap-2">
+              {mapSwings.map((swing) => (
+                <div key={`${swing.mapName}_${swing.roundNumber}`} className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-display text-lg text-text">{swing.displayRound}</div>
+                    <div className="numbers text-sm text-accent">{swing.swing}%</div>
+                  </div>
+                  <div className="text-xs text-muted">{swing.mapName} · start {swing.start}% · finish {swing.finish}%</div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MapHeatmapsView({ results, mobile = false }) {
+  const [selectedMapId, setSelectedMapId] = useState(results.maps[0]?.id ?? null);
+  const [sideFilter, setSideFilter] = useState("all");
+  const selectedMap = results.maps.find((map) => map.id === selectedMapId) ?? results.maps[0];
+  const heatClusters = useMemo(
+    () => buildHeatmapClusters(selectedMap, sideFilter === "all" ? "all" : sideFilter.toUpperCase()),
+    [selectedMap, sideFilter]
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2">
+        {results.maps.map((map) => (
+          <button
+            key={map.id}
+            type="button"
+            onClick={() => setSelectedMapId(map.id)}
+            className={classNames(
+              "rounded-xl border px-4 py-2 text-sm transition",
+              selectedMap.id === map.id ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
+            )}
+          >
+            {map.mapName}
+          </button>
+        ))}
+        <div className="ml-auto flex items-center gap-2 rounded-xl border border-border bg-card/70 p-1">
+          {[
+            { id: "all", label: "All" },
+            { id: "ct", label: "CT Deaths" },
+            { id: "t", label: "T Deaths" },
+          ].map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setSideFilter(filter.id)}
+              className={classNames(
+                "rounded-lg border px-3 py-1.5 text-xs uppercase tracking-[0.16em] transition",
+                sideFilter === filter.id ? "border-accent bg-accent/10 text-accent" : "border-transparent text-muted"
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <Panel
+        title="Map Heatmaps"
+        subtitle="Aggregated death clusters on the selected map for review and analyst reads."
+      >
+        <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_320px]")}>
+          <RadarHeatmapPanel mapName={selectedMap.mapName} clusters={heatClusters} sideFilter={sideFilter === "all" ? "all" : sideFilter.toUpperCase()} />
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-border bg-card/60 p-4">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Heatmap Read</div>
+              <div className="mt-2 font-display text-2xl text-text">{selectedMap.mapName}</div>
+              <div className="mt-2 text-sm text-muted">
+                {heatClusters.length
+                  ? `${heatClusters[0].zone} is the hottest zone with ${heatClusters[0].count} deaths in the selected filter.`
+                  : "No deaths recorded for this filter."}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border bg-card/60 p-4">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-muted">Top Clusters</div>
+              <div className="mt-3 space-y-2">
+                {heatClusters.slice(0, 8).map((cluster) => (
+                  <div key={cluster.id} className="rounded-xl border border-border bg-surface/70 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm text-text">{cluster.zone}</div>
+                      <div className="numbers text-sm text-accent">{cluster.count}</div>
+                    </div>
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted">
+                      {cluster.side === "CT" ? "CT deaths" : cluster.side === "T" ? "T deaths" : "mixed"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function ResultsView({ results, mobile = false }) {
   const { t } = useI18n();
   const [statsMode, setStatsMode] = useState("combined");
+  const [resultsMode, setResultsMode] = useState("overview");
   const teamAPlayers = results.players.filter((player) => player.teamKey === "teamA");
   const teamBPlayers = results.players.filter((player) => player.teamKey === "teamB");
+  const highlightCards = useMemo(() => buildHighlightCards(results), [results]);
   return (
     <div className="space-y-6">
       <Panel title={t("series_results")} subtitle="Final scores, player leaders, map breakdowns, and highlight moments.">
@@ -4976,112 +6355,125 @@ function ResultsView({ results, mobile = false }) {
           </div>
         </div>
       </Panel>
-      <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[0.8fr_1.2fr]")}>
-        <Panel title={t("highlights")} subtitle="Auto-generated moments from clutches, spikes, and key tactical turns.">
-          <div className="space-y-3">
-            {results.highlights.map((highlight) => (
-              <div key={highlight} className="rounded-xl border border-border bg-card/60 p-4 text-sm text-text">
-                {highlight}
-              </div>
-            ))}
-          </div>
-        </Panel>
-        <Panel title={t("map_breakdown")} subtitle="Each map keeps half scores, economy spent, and round-type wins.">
-          <div className="space-y-4">
-            {results.maps.map((map) => (
-              <div key={map.id} className="rounded-2xl border border-border bg-card/60 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-display text-3xl text-text">{map.mapName}</div>
-                    <div className="text-sm text-muted">
-                      Winner: {map.winnerKey === "teamA" ? results.teamA.tag : results.teamB.tag}
-                    </div>
-                  </div>
-                  <div className="numbers text-3xl">
-                    {map.score.teamA}-{map.score.teamB}
-                  </div>
-                </div>
-                <div className={classNames("mt-4 grid gap-3 text-sm", mobile ? "grid-cols-1" : "grid-cols-3")}>
-                  <div className="rounded-xl border border-border bg-surface/80 p-3">
-                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Halves</div>
-                    <div className="mt-1">
-                      1H {map.halfBreakdown.firstHalf.teamA}-{map.halfBreakdown.firstHalf.teamB}
-                    </div>
-                    <div>
-                      2H {map.halfBreakdown.secondHalf.teamA}-{map.halfBreakdown.secondHalf.teamB}
-                    </div>
-                    {map.halfBreakdown.overtimes.map((ot) => (
-                      <div key={ot.label}>
-                        {ot.label} {ot.score.teamA}-{ot.score.teamB}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rounded-xl border border-border bg-surface/80 p-3">
-                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Economy Spent</div>
-                    <div className="mt-1 numbers">{formatMoney(map.economySpent.teamA)}</div>
-                    <div className="numbers">{formatMoney(map.economySpent.teamB)}</div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-surface/80 p-3">
-                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Buy Wins</div>
-                    <div className="mt-1 text-muted">
-                      Eco {map.roundTypeWins.teamA.eco}/{map.roundTypeWins.teamB.eco}
-                    </div>
-                    <div className="text-muted">
-                      Force {map.roundTypeWins.teamA.force}/{map.roundTypeWins.teamB.force}
-                    </div>
-                    <div className="text-muted">
-                      Full {map.roundTypeWins.teamA.full}/{map.roundTypeWins.teamB.full}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
+      <div className="flex justify-end">
+        <ResultsModeSwitch mode={resultsMode} onChange={setResultsMode} />
       </div>
-      <Panel
-        title={t("full_player_stats")}
-        subtitle="Series aggregate scoreboard with ratings, ADR, KAST, HS, clutches, and openings."
-        action={
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStatsMode("combined")}
-              className={classNames(
-                "rounded-xl border px-4 py-2 text-sm",
-                statsMode === "combined" ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
-              )}
-            >
-              {t("combined")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatsMode("team")}
-              className={classNames(
-                "rounded-xl border px-4 py-2 text-sm",
-                statsMode === "team" ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
-              )}
-            >
-              {t("by_team")}
-            </button>
+      {resultsMode === "overview" ? (
+        <>
+          <div className={classNames("grid gap-6", mobile ? "grid-cols-1" : "grid-cols-[0.8fr_1.2fr]")}>
+            <Panel title={t("highlights")} subtitle="Auto-generated storylines, momentum swings, and star rounds.">
+              <div className="space-y-3">
+                {highlightCards.map((highlight) => (
+                  <div key={highlight.id} className="rounded-2xl border border-border bg-card/60 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-accent">{highlight.eyebrow}</div>
+                    <div className="mt-2 font-display text-2xl text-text">{highlight.title}</div>
+                    <div className="mt-2 text-sm text-muted">{highlight.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel title={t("map_breakdown")} subtitle="Each map keeps half scores, economy spent, and round-type wins.">
+              <div className="space-y-4">
+                {results.maps.map((map) => (
+                  <div key={map.id} className="rounded-2xl border border-border bg-card/60 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-display text-3xl text-text">{map.mapName}</div>
+                        <div className="text-sm text-muted">
+                          Winner: {map.winnerKey === "teamA" ? results.teamA.tag : results.teamB.tag}
+                        </div>
+                      </div>
+                      <div className="numbers text-3xl">
+                        {map.score.teamA}-{map.score.teamB}
+                      </div>
+                    </div>
+                    <div className={classNames("mt-4 grid gap-3 text-sm", mobile ? "grid-cols-1" : "grid-cols-3")}>
+                      <div className="rounded-xl border border-border bg-surface/80 p-3">
+                        <div className="text-xs uppercase tracking-[0.18em] text-muted">Halves</div>
+                        <div className="mt-1">
+                          1H {map.halfBreakdown.firstHalf.teamA}-{map.halfBreakdown.firstHalf.teamB}
+                        </div>
+                        <div>
+                          2H {map.halfBreakdown.secondHalf.teamA}-{map.halfBreakdown.secondHalf.teamB}
+                        </div>
+                        {map.halfBreakdown.overtimes.map((ot) => (
+                          <div key={ot.label}>
+                            {ot.label} {ot.score.teamA}-{ot.score.teamB}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="rounded-xl border border-border bg-surface/80 p-3">
+                        <div className="text-xs uppercase tracking-[0.18em] text-muted">Economy Spent</div>
+                        <div className="mt-1 numbers">{formatMoney(map.economySpent.teamA)}</div>
+                        <div className="numbers">{formatMoney(map.economySpent.teamB)}</div>
+                      </div>
+                      <div className="rounded-xl border border-border bg-surface/80 p-3">
+                        <div className="text-xs uppercase tracking-[0.18em] text-muted">Buy Wins</div>
+                        <div className="mt-1 text-muted">
+                          Eco {map.roundTypeWins.teamA.eco}/{map.roundTypeWins.teamB.eco}
+                        </div>
+                        <div className="text-muted">
+                          Force {map.roundTypeWins.teamA.force}/{map.roundTypeWins.teamB.force}
+                        </div>
+                        <div className="text-muted">
+                          Full {map.roundTypeWins.teamA.full}/{map.roundTypeWins.teamB.full}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
           </div>
-        }
-      >
-        {statsMode === "combined" ? (
-          <StatsTable players={results.players} showTeam />
-        ) : (
-          <div className={classNames("grid gap-8", mobile ? "grid-cols-1" : "grid-cols-2")}>
-            <div className="min-w-0">
-              <div className="mb-3 font-display text-2xl text-text">{results.teamA.name}</div>
-              <StatsTable players={teamAPlayers} />
-            </div>
-            <div className="min-w-0">
-              <div className="mb-3 font-display text-2xl text-text">{results.teamB.name}</div>
-              <StatsTable players={teamBPlayers} />
-            </div>
-          </div>
-        )}
-      </Panel>
+          <Panel
+            title={t("full_player_stats")}
+            subtitle="Series aggregate scoreboard with ratings, ADR, KAST, HS, clutches, and openings."
+            action={
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStatsMode("combined")}
+                  className={classNames(
+                    "rounded-xl border px-4 py-2 text-sm",
+                    statsMode === "combined" ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
+                  )}
+                >
+                  {t("combined")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatsMode("team")}
+                  className={classNames(
+                    "rounded-xl border px-4 py-2 text-sm",
+                    statsMode === "team" ? "border-accent bg-accent/10 text-accent" : "border-border text-muted"
+                  )}
+                >
+                  {t("by_team")}
+                </button>
+              </div>
+            }
+          >
+            {statsMode === "combined" ? (
+              <StatsTable players={results.players} showTeam />
+            ) : (
+              <div className={classNames("grid gap-8", mobile ? "grid-cols-1" : "grid-cols-2")}>
+                <div className="min-w-0">
+                  <div className="mb-3 font-display text-2xl text-text">{results.teamA.name}</div>
+                  <StatsTable players={teamAPlayers} />
+                </div>
+                <div className="min-w-0">
+                  <div className="mb-3 font-display text-2xl text-text">{results.teamB.name}</div>
+                  <StatsTable players={teamBPlayers} />
+                </div>
+              </div>
+            )}
+          </Panel>
+        </>
+      ) : resultsMode === "analyst" ? (
+        <AnalystDeskView results={results} mobile={mobile} />
+      ) : (
+        <MapHeatmapsView results={results} mobile={mobile} />
+      )}
     </div>
   );
 }
