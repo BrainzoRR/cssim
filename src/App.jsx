@@ -249,7 +249,7 @@ const RADAR_VIEWBOXES = {
   },
   Nuke: {
     upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
-    lower: { left: 0.39, top: 0.28, width: 0.46, height: 0.49 },
+    lower: { left: 0.38, top: 0.34, width: 0.34, height: 0.42 },
   },
   Overpass: {
     upper: { left: 0.09, top: 0.03, width: 0.79, height: 0.93 },
@@ -362,12 +362,13 @@ const RADAR_ZONE_POSITIONS = {
     mini: radarAnchors([[0.56, 0.5], [0.54, 0.46]]),
     hut: radarAnchors([[0.64, 0.57], [0.63, 0.52]]),
     heaven: radarAnchors([[0.61, 0.37], [0.58, 0.34]]),
-    ramp: radarAnchors([[0.48, 0.56], [0.46, 0.6]], "lower"),
-    decon: radarAnchors([[0.71, 0.6], [0.67, 0.58]], "lower"),
-    "double doors": radarAnchors([[0.59, 0.28], [0.56, 0.31]], "lower"),
-    "site::B": radarAnchors([[0.55, 0.46], [0.57, 0.5]], "lower"),
+    ramp: radarAnchors([[0.42, 0.57], [0.44, 0.61]], "lower", "absolute"),
+    fork: radarAnchors([[0.47, 0.47], [0.49, 0.49]], "lower", "absolute"),
+    decon: radarAnchors([[0.61, 0.5], [0.63, 0.54]], "lower", "absolute"),
+    "double doors": radarAnchors([[0.47, 0.47], [0.49, 0.49]], "lower", "absolute"),
+    "site::B": radarAnchors([[0.53, 0.57], [0.55, 0.61]], "lower", "absolute"),
     garage: radarAnchors([[0.08, 0.55], [0.1, 0.58]]),
-    secret: radarAnchors([[0.31, 0.54], [0.28, 0.58]], "lower"),
+    secret: radarAnchors([[0.66, 0.6], [0.68, 0.67]], "lower", "absolute"),
     lobby: radarAnchors([[0.79, 0.58], [0.75, 0.56], [0.83, 0.6]]),
   },
   Overpass: {
@@ -478,8 +479,9 @@ const RADAR_ZONE_ALIASES = {
     heaven: "Heaven",
     secret: "Secret",
     ramp: "Ramp",
+    fork: "Fork",
     decon: "Decon",
-    "double doors": "Doors",
+    "double doors": "Fork",
     doors: "Doors",
     "b site": "B Site",
     "a site": "A Site",
@@ -594,11 +596,12 @@ const RADAR_ZONE_POLYGONS = {
     Mini: radarPolygon([[0.626, 0.545], [0.679, 0.545], [0.679, 0.614], [0.626, 0.614]], "upper", "absolute"),
     Hut: radarPolygon([[0.5262, 0.5713], [0.5525, 0.5713], [0.55, 0.53], [0.5225, 0.5313]], "upper", "absolute"),
     Heaven: radarPolygon([[0.62, 0.445], [0.6813, 0.4437], [0.685, 0.485], [0.6212, 0.485]], "upper", "absolute"),
-    Ramp: radarPolygon([[0.39, 0.45], [0.47, 0.45], [0.5, 0.56], [0.47, 0.66], [0.41, 0.66], [0.38, 0.57]], "lower", "absolute"),
-    Decon: radarPolygon([[0.64, 0.45], [0.73, 0.45], [0.73, 0.57], [0.64, 0.57]], "lower", "absolute"),
-    Doors: radarPolygon([[0.49, 0.3], [0.58, 0.3], [0.58, 0.38], [0.49, 0.38]], "lower", "absolute"),
-    "B Site": radarPolygon([[0.47, 0.35], [0.64, 0.35], [0.64, 0.66], [0.47, 0.66]], "lower", "absolute"),
-    Secret: radarPolygon([[0.74, 0.31], [0.85, 0.31], [0.85, 0.73], [0.75, 0.73], [0.75, 0.5], [0.74, 0.5]], "lower", "absolute"),
+    Ramp: radarPolygon([[0.39, 0.51], [0.45, 0.5], [0.47, 0.57], [0.45, 0.66], [0.4, 0.66], [0.38, 0.57]], "lower", "absolute"),
+    Fork: radarPolygon([[0.44, 0.44], [0.5, 0.44], [0.51, 0.5], [0.45, 0.52]], "lower", "absolute"),
+    Decon: radarPolygon([[0.59, 0.45], [0.66, 0.45], [0.66, 0.57], [0.59, 0.57]], "lower", "absolute"),
+    Doors: radarPolygon([[0.49, 0.34], [0.57, 0.34], [0.57, 0.4], [0.49, 0.4]], "lower", "absolute"),
+    "B Site": radarPolygon([[0.47, 0.47], [0.59, 0.47], [0.59, 0.66], [0.47, 0.66]], "lower", "absolute"),
+    Secret: radarPolygon([[0.63, 0.52], [0.7, 0.52], [0.7, 0.73], [0.64, 0.73]], "lower", "absolute"),
   },
   Dust: {
     "A Long": radarPolygon([[0.8263, 0.4263], [0.855, 0.4375], [0.8325, 0.4925], [0.91, 0.4925], [0.9163, 0.2838], [0.8225, 0.275]]),
@@ -1722,6 +1725,21 @@ function resolveRadarPosition(mapName, zone, site) {
   return RADAR_SITE_FALLBACKS[mapName]?.[site] ?? { x: 0.5, y: 0.5, level: "upper" };
 }
 
+function resolveRadarZoneLabel(mapName, zone, site) {
+  const normalizedZone = normalizeRadarLookupKey(zone);
+  const normalizedSite = normalizeRadarLookupKey(site);
+  const siteScopedKey = normalizedZone && normalizedSite ? `${normalizedZone}::${normalizedSite}` : "";
+  const aliasMap = RADAR_ZONE_ALIASES[mapName] ?? {};
+  return (
+    (siteScopedKey && aliasMap[siteScopedKey]) ||
+    aliasMap[normalizedZone] ||
+    (normalizedSite && aliasMap[`site::${normalizedSite}`]) ||
+    zone ||
+    site ||
+    "unknown"
+  );
+}
+
 function getRadarViewBox(mapName, level = "upper") {
   return RADAR_VIEWBOXES[mapName]?.[level] ?? { left: 0, top: 0, width: 1, height: 1 };
 }
@@ -1872,6 +1890,7 @@ function buildRadarMarkers(events = [], mapName) {
         y: separated.y,
         level: separated.level ?? "upper",
         zone: event.zone,
+        zoneLabel: resolveRadarZoneLabel(mapName, event.zone, event.site),
         site: event.site,
         victimTeamKey: event.victimTeamKey,
         victimSide: event.victimSide,
@@ -5798,7 +5817,7 @@ function RadarPanel({
                       {marker.victimSide === "CT" ? "CT down" : "T down"}
                     </div>
                   </div>
-                  <div className="mt-1 text-sm text-text">{marker.zone ?? marker.site ?? "unknown"}</div>
+                  <div className="mt-1 text-sm text-text">{marker.zoneLabel ?? marker.zone ?? marker.site ?? "unknown"}</div>
                 </div>
               ))
             ) : (

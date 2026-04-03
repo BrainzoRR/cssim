@@ -114,7 +114,7 @@ export const MAP_ZONES = {
   },
   Nuke: {
     A: ["outside", "mini", "hut", "heaven"],
-    B: ["ramp", "decon", "double doors", "site"],
+    B: ["ramp", "fork", "decon", "site"],
     Mid: ["outside", "garage", "secret", "lobby"],
   },
   Overpass: {
@@ -185,11 +185,11 @@ const MAP_ROUTE_PRESETS = {
       postPlant: ["outside", "hut", "mini"],
     },
     B: {
-      entry: ["ramp", "decon", "double doors"],
-      hold: ["site", "secret"],
+      entry: ["ramp", "secret", "fork"],
+      hold: ["fork", "decon", "site"],
       support: ["lobby"],
-      retake: ["decon", "double doors", "secret"],
-      postPlant: ["ramp", "site", "secret"],
+      retake: ["decon", "fork", "site"],
+      postPlant: ["ramp", "site", "decon", "secret"],
     },
     Mid: { entry: ["outside", "garage"], hold: ["secret", "lobby"], support: ["mini"] },
     lurk: ["outside", "garage", "secret"],
@@ -313,10 +313,10 @@ const ZONE_TIME_WINDOWS = {
     mini: [26, 62],
     hut: [28, 68],
     heaven: [40, 115],
-    ramp: [24, 72],
-    secret: [28, 82],
+    ramp: [22, 58],
+    secret: [30, 72],
+    fork: [38, 115],
     decon: [44, 115],
-    "double doors": [40, 115],
     site: [42, 115],
   },
   Dust: {
@@ -393,6 +393,7 @@ const TIGHT_ZONE_TOKENS = [
   "garage",
   "mini",
   "hut",
+  "fork",
 ];
 
 const LARGE_ZONE_TOKENS = [
