@@ -249,7 +249,7 @@ const RADAR_VIEWBOXES = {
   },
   Nuke: {
     upper: { left: 0.18, top: 0.16, width: 0.7, height: 0.62 },
-    lower: { left: 0.056, top: 0.264, width: 0.928, height: 0.496 },
+    lower: { left: 0.31, top: 0.24, width: 0.5, height: 0.58 },
   },
   Overpass: {
     upper: { left: 0.09, top: 0.03, width: 0.79, height: 0.93 },
@@ -5737,10 +5737,10 @@ function RadarPanel({
               className={classNames(
                 "overflow-hidden rounded-xl border border-border bg-[#050608]",
                 expanded
-                  ? "self-center aspect-[1.87/1] h-auto max-h-[220px]"
+                  ? "self-center aspect-[0.82/1] h-auto max-h-[340px]"
                   : compactStage
-                    ? "self-center aspect-[1.87/1] h-auto max-h-[120px]"
-                    : "self-center aspect-[1.87/1] h-auto max-h-[150px]"
+                    ? "self-center aspect-[0.82/1] h-auto max-h-[170px]"
+                    : "self-center aspect-[0.82/1] h-auto max-h-[210px]"
               )}
             >
               <RadarImageStage
@@ -5824,8 +5824,13 @@ function RadarDeathMarker({ marker, victimSide, compact = false, expanded = fals
   if (!width || !height) {
     return null;
   }
-  const normalizedX = clamp((marker.x - viewBox.left) / viewBox.width, 0.02, 0.98);
-  const normalizedY = clamp((marker.y - viewBox.top) / viewBox.height, 0.02, 0.98);
+  const rawNormalizedX = (marker.x - viewBox.left) / viewBox.width;
+  const rawNormalizedY = (marker.y - viewBox.top) / viewBox.height;
+  if (rawNormalizedX < 0 || rawNormalizedX > 1 || rawNormalizedY < 0 || rawNormalizedY > 1) {
+    return null;
+  }
+  const normalizedX = clamp(rawNormalizedX, 0.02, 0.98);
+  const normalizedY = clamp(rawNormalizedY, 0.02, 0.98);
 
   return (
     <div
@@ -5860,8 +5865,13 @@ function RadarHeatmapMarker({ cluster, compact = false, expanded = false, imageF
     return null;
   }
 
-  const normalizedX = clamp((cluster.x - viewBox.left) / viewBox.width, 0.02, 0.98);
-  const normalizedY = clamp((cluster.y - viewBox.top) / viewBox.height, 0.02, 0.98);
+  const rawNormalizedX = (cluster.x - viewBox.left) / viewBox.width;
+  const rawNormalizedY = (cluster.y - viewBox.top) / viewBox.height;
+  if (rawNormalizedX < 0 || rawNormalizedX > 1 || rawNormalizedY < 0 || rawNormalizedY > 1) {
+    return null;
+  }
+  const normalizedX = clamp(rawNormalizedX, 0.02, 0.98);
+  const normalizedY = clamp(rawNormalizedY, 0.02, 0.98);
   const size = expanded ? clamp(18 + cluster.count * 5, 18, 54) : compact ? clamp(12 + cluster.count * 4, 12, 32) : clamp(16 + cluster.count * 4, 16, 42);
   const tone =
     cluster.side === "CT"
