@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { Component, createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -733,9 +733,34 @@ function recoverResultsData(currentMatch, resultsData) {
   return null;
 }
 
+function isRenderableMatch(match) {
+  return Boolean(
+    match &&
+      typeof match === "object" &&
+      Array.isArray(match.maps) &&
+      match.maps.length &&
+      match.teamA &&
+      match.teamB &&
+      typeof match.status === "string"
+  );
+}
+
+function isRenderableResultsData(resultsData) {
+  return Boolean(
+    resultsData &&
+      typeof resultsData === "object" &&
+      Array.isArray(resultsData.maps) &&
+      resultsData.maps.length &&
+      Array.isArray(resultsData.players) &&
+      resultsData.teamA &&
+      resultsData.teamB
+  );
+}
+
 function sanitizeRestoredSession(snapshotState) {
-  const restoredMatch = snapshotState?.currentMatch ?? null;
-  const restoredResults = recoverResultsData(restoredMatch, snapshotState?.resultsData ?? null);
+  const restoredMatch = isRenderableMatch(snapshotState?.currentMatch) ? snapshotState.currentMatch : null;
+  const restoredResultsCandidate = recoverResultsData(restoredMatch, snapshotState?.resultsData ?? null);
+  const restoredResults = isRenderableResultsData(restoredResultsCandidate) ? restoredResultsCandidate : null;
   const currentMatch = restoredMatch?.status === "finished" ? null : restoredMatch;
   let activeView = snapshotState?.activeView ?? "home";
 
@@ -971,6 +996,12 @@ function appReducer(state, action) {
         ...state,
         matchHistory: [],
       };
+    case "CLEAR_ACTIVE_MATCH":
+      return {
+        ...state,
+        currentMatch: null,
+        activeView: isRenderableResultsData(state.resultsData) ? "results" : "home",
+      };
     default:
       return state;
   }
@@ -1021,12 +1052,54 @@ function App() {
   const lastSoundCueRef = useRef(null);
   const t = (key) => (language === "ru" ? COPY_RU[key] : COPY[language]?.[key]) ?? COPY.en[key] ?? key;
 
+  const recoverFromRenderCrash = () => {
+    try {
+      const safeSnapshot = {
+        snapshotVersion: SNAPSHOT_VERSION,
+        state: {
+          teams: state.teams,
+          matchHistory: sanitizeMatchHistory(state.matchHistory),
+          activeView: isRenderableResultsData(state.resultsData) ? "results" : "home",
+          selectedTeamId: state.teams.some((team) => team.id === state.selectedTeamId)
+            ? state.selectedTeamId
+            : state.teams[0]?.id ?? null,
+          currentMatch: null,
+          resultsData: isRenderableResultsData(state.resultsData) ? state.resultsData : null,
+        },
+        matchSetup: sanitizeMatchSetup(matchSetup, state.teams),
+        language: language === "ru" ? "ru" : "en",
+        siteMode,
+        liveLayoutMode,
+        livePresentationMode,
+        livePlaybackRate,
+        soundDesignEnabled,
+        lastSavedAt: new Date().toISOString(),
+      };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safeSnapshot));
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+    window.location.reload();
+  };
+
+  const resetSavedState = () => {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.location.reload();
+  };
+
   const pushToast = (message, tone = "success") => {
     const id = `${Date.now()}_${Math.random()}`;
     setToasts((current) => [...current, { id, message, tone }]);
     window.setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id));
     }, 3200);
+  };
+
+  const handleMatchRuntimeFailure = (error, message = "Live session recovered after a runtime issue.") => {
+    console.error("Live match runtime failure", error);
+    setRoundPlayback(null);
+    dispatch({ type: "CLEAR_ACTIVE_MATCH" });
+    pushToast(message, "error");
   };
 
   const handleSiteModeChange = (mode) => {
@@ -1250,9 +1323,13 @@ function App() {
         return undefined;
       }
       instantMatchHandledRef.current = state.currentMatch.id;
-      const finished = simulateEntireMatch(state.currentMatch);
-      dispatch({ type: "FINISH_MATCH", payload: finished });
-      pushToast("Match finished instantly.");
+      try {
+        const finished = simulateEntireMatch(state.currentMatch);
+        dispatch({ type: "FINISH_MATCH", payload: finished });
+        pushToast("Match finished instantly.");
+      } catch (error) {
+        handleMatchRuntimeFailure(error, "Instant simulation recovered after a runtime issue.");
+      }
       return undefined;
     }
 
@@ -1274,7 +1351,13 @@ function App() {
         return undefined;
       }
 
-      const nextMatch = stepMatch(currentMatch);
+      let nextMatch;
+      try {
+        nextMatch = stepMatch(currentMatch);
+      } catch (error) {
+        handleMatchRuntimeFailure(error);
+        return undefined;
+      }
       const playbackSummary = nextMatch.latestRound;
       const playbackFrames = playbackSummary?.timeline ?? [];
       const playbackPreset =
@@ -1344,7 +1427,15 @@ function App() {
 
       roundStartedAtRef.current = Date.now();
       setRoundProgress(0);
-      const nextMatch = stepMatch(currentMatch);
+      let nextMatch;
+      try {
+        nextMatch = stepMatch(currentMatch);
+      } catch (error) {
+        window.clearInterval(roundIntervalRef.current);
+        window.clearInterval(progressIntervalRef.current);
+        handleMatchRuntimeFailure(error);
+        return;
+      }
       if (nextMatch.status === "finished") {
         dispatch({ type: "FINISH_MATCH", payload: nextMatch });
         pushToast("Series complete.");
@@ -1443,19 +1534,27 @@ function App() {
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      <div className="min-h-screen text-text">{renderApp()}</div>
+      <AppErrorBoundary onRecover={recoverFromRenderCrash} onResetState={resetSavedState}>
+        <div className="min-h-screen text-text">{renderApp()}</div>
+      </AppErrorBoundary>
     </LanguageContext.Provider>
   );
 
   function renderApp() {
-    const resolvedResultsData = recoverResultsData(state.currentMatch, state.resultsData);
+    const resolvedCurrentMatch = isRenderableMatch(state.currentMatch) ? state.currentMatch : null;
+    const resultsCandidate = recoverResultsData(resolvedCurrentMatch, state.resultsData);
+    const resolvedResultsData = isRenderableResultsData(resultsCandidate) ? resultsCandidate : null;
     const resolvedActiveView =
-      (state.activeView === "live" || state.activeView === "veto") &&
-      !state.currentMatch &&
-      resolvedResultsData
-        ? "results"
-        : state.activeView;
-    const liveFocus = resolvedActiveView === "live" && state.currentMatch;
+      (state.activeView === "live" || state.activeView === "veto") && !resolvedCurrentMatch
+        ? resolvedResultsData
+          ? "results"
+          : state.activeView === "veto"
+            ? "match-setup"
+            : "home"
+        : state.activeView === "results" && !resolvedResultsData
+          ? "home"
+          : state.activeView;
+    const liveFocus = resolvedActiveView === "live" && resolvedCurrentMatch;
     const effectiveLiveLayout =
       siteMode === "mobile"
         ? liveLayoutMode === "coach"
@@ -1546,12 +1645,12 @@ function App() {
                 canStartMatch={canStartMatch}
               />
             )}
-            {resolvedActiveView === "veto" && state.currentMatch && (
-              <VetoView match={state.currentMatch} revealedCount={vetoRevealCount} mobile={mobileSite} />
+            {resolvedActiveView === "veto" && resolvedCurrentMatch && (
+              <VetoView match={resolvedCurrentMatch} revealedCount={vetoRevealCount} mobile={mobileSite} />
             )}
-            {resolvedActiveView === "live" && state.currentMatch && (
+            {resolvedActiveView === "live" && resolvedCurrentMatch && (
               <LiveMatchView
-                match={state.currentMatch}
+                match={resolvedCurrentMatch}
                 roundProgress={roundProgress}
                 mobileSite={mobileSite}
                 layoutMode={effectiveLiveLayout}
@@ -1593,7 +1692,7 @@ function App() {
           <aside className={classNames("hidden w-[300px] xl:block", liveFocus && "xl:hidden", phoneLiveMode && "hidden", mobileSite && "xl:hidden")}>
             <SideRail
               selectedTeam={selectedTeam}
-              currentMatch={state.currentMatch}
+              currentMatch={resolvedCurrentMatch}
               lastSavedAt={lastSavedAt}
               onExport={handleExport}
               onImport={() => importInputRef.current?.click()}
@@ -1666,6 +1765,59 @@ function App() {
 }
 
 export default App;
+
+class AppErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("App render crash", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-hero-grid px-6 py-10 text-text">
+          <div className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center">
+            <div className="panel w-full rounded-3xl border border-red-500/25 bg-card/90 p-8 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 text-red-300">
+                <AlertTriangle size={30} />
+              </div>
+              <h1 className="mt-5 font-display text-4xl text-text">Live session crashed</h1>
+              <p className="mt-3 text-base leading-7 text-muted">
+                The simulator hit a render error. You can recover the saved teams and history, or fully reset the local snapshot.
+              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={this.props.onRecover}
+                  className="rounded-xl border border-accent bg-accent/10 px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-accent transition hover:bg-accent/15"
+                >
+                  Recover Session
+                </button>
+                <button
+                  type="button"
+                  onClick={this.props.onResetState}
+                  className="rounded-xl border border-border bg-surface px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-text transition hover:border-red-400/40 hover:text-red-300"
+                >
+                  Reset Local State
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 function renderLogo(logo, fallback = "T") {
   if (!logo) {
@@ -2365,11 +2517,11 @@ function useIsLandscape(enabled = true) {
   return isLandscape;
 }
 
-function Panel({ title, subtitle, action, children, className = "" }) {
+function Panel({ title, subtitle, action, children, className = "", headerClassName = "" }) {
   return (
     <section className={classNames("panel page-enter rounded-2xl p-5", className)}>
       {(title || subtitle || action) && (
-        <div className="mb-4 flex items-start justify-between gap-4">
+        <div className={classNames("mb-4 flex items-start justify-between gap-4", headerClassName)}>
           <div>
             {title && <h2 className="font-display text-2xl font-semibold tracking-wide text-text">{title}</h2>}
             {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
@@ -3694,6 +3846,15 @@ function LiveMatchView({
 }) {
   const { t } = useI18n();
   const [radarExpanded, setRadarExpanded] = useState(false);
+  if (!isRenderableMatch(match)) {
+    return (
+      <Panel title={t("live_match")} className="p-4">
+        <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-border px-6 text-center text-sm text-muted">
+          Live session data is unavailable right now. Return to match setup or reload the page to recover the stream.
+        </div>
+      </Panel>
+    );
+  }
   const activeMap = match.maps[match.currentMapIndex] ?? match.maps[match.maps.length - 1];
   const playbackSummary = roundPlayback?.summary ?? null;
   const playbackTotalFrames = roundPlayback?.totalFrames ?? playbackSummary?.timeline?.length ?? 0;
@@ -3899,7 +4060,6 @@ function LiveMatchView({
       <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
         <Panel
           title={t("live_match")}
-          subtitle="Compact fullscreen HUD with scores, sides, economy, and players."
           action={
             <div className="flex items-center gap-2">
               <SiteModeSwitch siteMode={siteMode} onChange={onSiteModeChange} compact />
@@ -3910,6 +4070,7 @@ function LiveMatchView({
             </div>
           }
           className="p-4"
+          headerClassName="mb-2"
         >
           <div className="rounded-2xl border border-border bg-card/70 p-4">
             <div className="flex items-center justify-between gap-6">
@@ -3933,8 +4094,8 @@ function LiveMatchView({
             </div>
           </div>
         </Panel>
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_380px] gap-3 overflow-hidden">
-          <div className="grid min-h-0 grid-cols-[210px_minmax(0,1fr)_360px] gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1.08fr)_340px] gap-3 overflow-hidden">
+          <div className="grid min-h-0 grid-cols-[210px_minmax(0,1fr)_390px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {[...activeMap.rounds].reverse().map((roundSummary) => (
@@ -4053,13 +4214,14 @@ function LiveMatchView({
                 </div>
               )}
             </Panel>
-            <div className="grid min-h-0 grid-rows-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 overflow-hidden">
+            <div className="grid min-h-0 grid-rows-[minmax(0,1.55fr)_minmax(0,0.85fr)] gap-3 overflow-hidden">
               <KillFeedPanel
                 entries={killFeedEntries}
                 title="Kill Feed"
-                subtitle="Large live frag feed for broadcast and stream monitoring."
-                limit={8}
+                subtitle=""
+                limit={10}
                 emphasized
+                className="min-h-[250px]"
               />
               <Panel title={t("live_feed")} subtitle="Newest play-by-play stays on top for casting." className="flex min-h-0 flex-col overflow-hidden p-3">
                 <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
