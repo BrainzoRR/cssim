@@ -674,6 +674,39 @@ function defaultSetup(teams) {
   };
 }
 
+const SNAPSHOT_VERSION = 2;
+const VALID_SITE_MODES = new Set([null, "desktop", "mobile"]);
+const VALID_LIVE_LAYOUT_MODES = new Set(["broadcast", "overlay", "coach", "phone"]);
+const VALID_PRESENTATION_MODES = new Set(["semi", "live"]);
+
+function sanitizeMatchHistory(entries) {
+  return (Array.isArray(entries) ? entries : [])
+    .filter((entry) => entry && typeof entry === "object" && typeof entry.id === "string")
+    .slice(0, 50);
+}
+
+function sanitizeMatchSetup(setup, teams) {
+  const base = defaultSetup(teams);
+  if (!setup || typeof setup !== "object") {
+    return base;
+  }
+
+  const teamAId = teams.some((team) => team.id === setup.teamAId) ? setup.teamAId : base.teamAId;
+  const teamBId =
+    teams.some((team) => team.id === setup.teamBId && team.id !== teamAId)
+      ? setup.teamBId
+      : teams.find((team) => team.id !== teamAId)?.id ?? base.teamBId;
+
+  return {
+    teamAId,
+    teamBId,
+    format: MATCH_FORMATS.includes(setup.format) ? setup.format : base.format,
+    speed: SPEED_OPTIONS.some((option) => option.id === setup.speed) ? setup.speed : base.speed,
+    showDetailedLogs:
+      typeof setup.showDetailedLogs === "boolean" ? setup.showDetailedLogs : base.showDetailedLogs,
+  };
+}
+
 const LEGACY_SEED_SIGNATURE = ["FAZE::FAZE", "G2::G2", "NAVI::NAVI", "VIRTUS.PRO::VP"];
 
 function shouldRefreshLegacySeeds(teams) {
@@ -771,10 +804,19 @@ function loadStoredSnapshot() {
     }
 
     const parsed = JSON.parse(raw);
-    const storedTeams = (parsed.state?.teams ?? parsed.teams ?? fallback.teams).map(normalizeTeam);
+    const parsedVersion = Number(parsed.snapshotVersion ?? 0);
+    const storedTeams = (Array.isArray(parsed.state?.teams) ? parsed.state.teams : parsed.teams ?? fallback.teams).map(normalizeTeam);
     const teams = shouldRefreshLegacySeeds(storedTeams) ? fallback.teams : storedTeams;
-    const matchHistory = parsed.state?.matchHistory ?? parsed.matchHistory ?? [];
-    const restoredSession = sanitizeRestoredSession(parsed.state ?? {});
+    const matchHistory = sanitizeMatchHistory(parsed.state?.matchHistory ?? parsed.matchHistory ?? []);
+    const restoredSession =
+      parsedVersion >= SNAPSHOT_VERSION ? sanitizeRestoredSession(parsed.state ?? {}) : sanitizeRestoredSession({});
+    const siteMode = VALID_SITE_MODES.has(parsed.siteMode ?? null) ? parsed.siteMode ?? null : null;
+    const liveLayoutMode = VALID_LIVE_LAYOUT_MODES.has(parsed.liveLayoutMode) ? parsed.liveLayoutMode : "broadcast";
+    const livePresentationMode = VALID_PRESENTATION_MODES.has(parsed.livePresentationMode) ? parsed.livePresentationMode : "semi";
+    const livePlaybackRate =
+      Number.isFinite(parsed.livePlaybackRate) && parsed.livePlaybackRate >= 0.35 && parsed.livePlaybackRate <= 2.5
+        ? parsed.livePlaybackRate
+        : 1.25;
     return {
       state: {
         teams,
@@ -787,16 +829,17 @@ function loadStoredSnapshot() {
         currentMatch: restoredSession.currentMatch,
         resultsData: restoredSession.resultsData,
       },
-      setup: parsed.matchSetup ?? defaultSetup(teams),
+      setup: sanitizeMatchSetup(parsed.matchSetup, teams),
       lastSavedAt: parsed.lastSavedAt ?? null,
-      language: parsed.language ?? "en",
-      siteMode: parsed.siteMode ?? null,
-      liveLayoutMode: parsed.liveLayoutMode ?? "broadcast",
-      livePresentationMode: parsed.livePresentationMode ?? "semi",
-      livePlaybackRate: parsed.livePlaybackRate ?? 1.25,
+      language: parsed.language === "ru" ? "ru" : "en",
+      siteMode,
+      liveLayoutMode,
+      livePresentationMode,
+      livePlaybackRate,
       soundDesignEnabled: parsed.soundDesignEnabled ?? false,
     };
   } catch {
+    window.localStorage.removeItem(STORAGE_KEY);
     return {
       state: baseState,
       setup: defaultSetup(fallback.teams),
@@ -1134,6 +1177,7 @@ function App() {
 
   useEffect(() => {
     const serialized = JSON.stringify({
+      snapshotVersion: SNAPSHOT_VERSION,
       state,
       matchSetup,
       language,
