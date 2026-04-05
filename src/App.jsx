@@ -3748,6 +3748,7 @@ function LiveMatchView({
     .map((entry) => ({
       ...entry,
       weaponLabel: entry.weaponLabel ?? "UTIL",
+      zoneLabel: resolveRadarZoneLabel(activeMap.mapName, entry.zone, entry.site),
     }))
     .reverse();
   const feedEntries = playbackSummary
@@ -3933,7 +3934,7 @@ function LiveMatchView({
           </div>
         </Panel>
         <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_380px] gap-3 overflow-hidden">
-          <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_280px] gap-3 overflow-hidden">
+          <div className="grid min-h-0 grid-cols-[210px_minmax(0,1fr)_360px] gap-3 overflow-hidden">
             <Panel title={t("round_history")} subtitle="Every round stays visible in a compact timeline." className="flex min-h-0 flex-col overflow-hidden p-3">
               <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {[...activeMap.rounds].reverse().map((roundSummary) => (
@@ -4052,16 +4053,25 @@ function LiveMatchView({
                 </div>
               )}
             </Panel>
-            <Panel title={t("live_feed")} subtitle="Newest play-by-play stays on top for casting." className="flex min-h-0 flex-col overflow-hidden p-3">
-              <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {feedEntries.map((log, index) => (
-                  <div key={log.id} className={classNames("rounded-xl border px-3 py-2.5", playbackSummary && index === 0 ? "border-accent/40 bg-accent/10" : "border-border bg-card/60")}>
-                    <div className="numbers text-[11px] text-accent">[{log.clock}] {log.mapName} {`R${log.roundNumber}`}</div>
-                    <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
+            <div className="grid min-h-0 grid-rows-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 overflow-hidden">
+              <KillFeedPanel
+                entries={killFeedEntries}
+                title="Kill Feed"
+                subtitle="Large live frag feed for broadcast and stream monitoring."
+                limit={8}
+                emphasized
+              />
+              <Panel title={t("live_feed")} subtitle="Newest play-by-play stays on top for casting." className="flex min-h-0 flex-col overflow-hidden p-3">
+                <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                  {feedEntries.map((log, index) => (
+                    <div key={log.id} className={classNames("rounded-xl border px-3 py-2.5", playbackSummary && index === 0 ? "border-accent/40 bg-accent/10" : "border-border bg-card/60")}>
+                      <div className="numbers text-[11px] text-accent">[{log.clock}] {log.mapName} {`R${log.roundNumber}`}</div>
+                      <div className="mt-1 text-sm leading-5 text-text">{log.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            </div>
           </div>
           <div className="grid min-h-0 grid-cols-[380px_minmax(0,1fr)] gap-3 overflow-hidden">
             <Panel title="Radar" subtitle="Death markers stay on the map for the whole round." className="overflow-hidden p-3">
@@ -4261,7 +4271,7 @@ function CoachLiveMatchView({
               showSummary={false}
             />
           </Panel>
-          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_260px]" : "grid-cols-[minmax(0,1fr)_500px]")}>
+          <div className={classNames("grid gap-3", mobileSite ? "grid-cols-[minmax(0,1fr)_280px]" : "grid-cols-[minmax(0,1fr)_620px]")}>
             <Panel title={mobileSite ? "" : "Round Read"} subtitle={mobileSite ? "" : "Current call, bomb state, and pacing."} className="overflow-hidden p-3">
               <div className="grid h-full gap-3">
                 <div className="rounded-2xl border border-border bg-card/60 px-3 py-3">
@@ -4306,39 +4316,15 @@ function CoachLiveMatchView({
                 </div>
               </div>
             </Panel>
-            <div className="grid min-h-0 grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3">
-              <Panel title={mobileSite ? "" : "Kill Feed"} subtitle={mobileSite ? "" : "Who killed whom and with what."} className="flex min-h-0 flex-col overflow-hidden p-3">
-                <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                  {killFeedEntries.length ? (
-                    killFeedEntries.slice(0, mobileSite ? 5 : 9).map((entry) => (
-                      <div key={entry.id} className="rounded-xl border border-border bg-card/60 px-3 py-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="numbers text-[11px] text-accent">[{entry.clock}]</div>
-                          <div
-                            className={classNames(
-                              "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]",
-                              entry.victimSide === "CT" ? "bg-sky-500/10 text-sky-300" : "bg-accent/10 text-accent"
-                            )}
-                          >
-                            {entry.victimSide === "CT" ? "CT down" : "T down"}
-                          </div>
-                        </div>
-                        <div className="mt-1 text-sm leading-5 text-text">
-                          <span className="font-semibold text-text">{entry.killerNickname ?? "Unknown"}</span>{" "}
-                          <span className="text-accent">[{entry.weaponLabel ?? "UTIL"}]</span>{" "}
-                          <span className="text-muted">vs</span>{" "}
-                          <span className="font-semibold text-text">{entry.victimNickname ?? "Unknown"}</span>
-                        </div>
-                        <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted">{entry.zone ?? entry.site ?? "mid"}</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted">
-                      Waiting for the first frag.
-                    </div>
-                  )}
-                </div>
-              </Panel>
+            <div className="grid min-h-0 grid-rows-[minmax(0,1.45fr)_minmax(0,1fr)] gap-3">
+              <KillFeedPanel
+                entries={killFeedEntries}
+                title={mobileSite ? "" : "Kill Feed"}
+                subtitle={mobileSite ? "" : "Who killed whom and with what."}
+                limit={mobileSite ? 6 : 10}
+                emphasized={!mobileSite}
+                compact={mobileSite}
+              />
               <Panel title={mobileSite ? "" : "Live Feed"} subtitle={mobileSite ? "" : "Recent calls for casting."} className="flex min-h-0 flex-col overflow-hidden p-3">
                 <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                   {(feedEntries.length ? feedEntries : activeMap.allLogs.slice(0, 8)).slice(0, mobileSite ? 4 : 6).map((log) => (
@@ -5564,6 +5550,82 @@ function WinExpectancyCard({ currentExpectancyPoint, expectancySeries = [], team
         </ResponsiveContainer>
       </div>
     </div>
+  );
+}
+
+function KillFeedPanel({
+  entries = [],
+  title = "Kill Feed",
+  subtitle = "Latest frags, weapons, and side losses.",
+  limit = 8,
+  compact = false,
+  emphasized = false,
+  className = "",
+}) {
+  const visibleEntries = entries.slice(0, limit);
+  const leadEntry = emphasized ? visibleEntries[0] ?? null : null;
+  const tailEntries = emphasized ? visibleEntries.slice(1) : visibleEntries;
+
+  return (
+    <Panel title={title} subtitle={subtitle} className={classNames("flex min-h-0 flex-col overflow-hidden p-3", className)}>
+      <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+        {!visibleEntries.length && (
+          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted">
+            Waiting for the first frag.
+          </div>
+        )}
+        {leadEntry && (
+          <div className="rounded-2xl border border-accent/35 bg-accent/10 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="numbers text-sm text-accent">[{leadEntry.clock}]</div>
+              <div
+                className={classNames(
+                  "rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.16em]",
+                  leadEntry.victimSide === "CT" ? "bg-sky-500/10 text-sky-300" : "bg-accent/10 text-accent"
+                )}
+              >
+                {leadEntry.victimSide === "CT" ? "CT down" : "T down"}
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-base leading-6 text-text">
+              <span className="font-display text-2xl text-text">{leadEntry.killerNickname ?? "Unknown"}</span>
+              <span className="rounded-lg border border-accent/30 bg-surface/80 px-2 py-1 text-xs uppercase tracking-[0.16em] text-accent">
+                {leadEntry.weaponLabel ?? "UTIL"}
+              </span>
+              <span className="text-muted">vs</span>
+              <span className="font-display text-2xl text-text">{leadEntry.victimNickname ?? "Unknown"}</span>
+            </div>
+            <div className="mt-2 text-xs uppercase tracking-[0.16em] text-muted">
+              {leadEntry.zoneLabel ?? leadEntry.zone ?? leadEntry.site ?? "mid"}
+            </div>
+          </div>
+        )}
+        {tailEntries.map((entry) => (
+          <div key={entry.id} className={classNames("rounded-xl border border-border bg-card/60", compact ? "px-3 py-2" : "px-3 py-2.5")}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="numbers text-[11px] text-accent">[{entry.clock}]</div>
+              <div
+                className={classNames(
+                  "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]",
+                  entry.victimSide === "CT" ? "bg-sky-500/10 text-sky-300" : "bg-accent/10 text-accent"
+                )}
+              >
+                {entry.victimSide === "CT" ? "CT down" : "T down"}
+              </div>
+            </div>
+            <div className={classNames("mt-1 text-text", compact ? "text-sm leading-5" : "text-[15px] leading-6")}>
+              <span className="font-semibold text-text">{entry.killerNickname ?? "Unknown"}</span>{" "}
+              <span className="text-accent">[{entry.weaponLabel ?? "UTIL"}]</span>{" "}
+              <span className="text-muted">vs</span>{" "}
+              <span className="font-semibold text-text">{entry.victimNickname ?? "Unknown"}</span>
+            </div>
+            <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted">
+              {entry.zoneLabel ?? entry.zone ?? entry.site ?? "mid"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }
 
